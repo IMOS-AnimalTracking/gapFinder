@@ -1,0 +1,154 @@
+#' @title Calculate spatial gap between stations 
+#'
+#' @description Function used to calculate gaps between sequence of stations with expected overlapping range
+#'
+#' @param type Position of station in the sequence: "first", "middle", "last"
+#' @param input Daily ranges
+#' @param j Station position
+#' @param date Date of interest
+#' @param station_order The names of the stations with expected overlapping ranges, from first to last.
+#' 
+#' @return Matrix of station spatial overlap
+#' 
+#' @keywords internal
+#' 
+calc_gaps <- function(type, 
+  input, 
+  j,
+  date, 
+  station_order) {
+
+          if (type == "first") {
+            station1 <- subset(input, station_name == station_order[j])
+            station2 <- subset(input, station_name == station_order[j+1])
+            # Only calculate overlaps if actual ranges were calculated
+            if (station1$range > 1 & station2$range > 1) {
+              aux.data <- data.frame(
+                lon = c(station1$lon, station2$lon),
+                lat = c(station1$lat, station2$lat),
+                radius_m = c(station1$range, station2$range))
+              # Calculate overlap matrix
+              overlap_matrix <- suppressWarnings(get_overlap_matrix(aux.data))
+              # Calculate gap size when overlap is zero
+              if (overlap_matrix[2,1] == 0) {
+                pts <- sf::st_as_sf(aux.data, coords = c("lon", "lat"), crs = 4326)
+                pts_m <- sf::st_transform(pts, 3857)
+                # Create buffers in meters
+                buffs <- sf::st_buffer(pts_m, dist = aux.data$radius_m)
+                gap_size1 <- round(as.numeric(sf::st_distance(buffs[1,], buffs[2,])), 2)              
+                over_per1 <- 0 # No overlap!
+              } else {
+                gap_size1 <- 0 # No gap, some overlap found!
+                over_per1 <- round(overlap_matrix[1,2] / max(c(overlap_matrix[1,1], overlap_matrix[2,2])), 2)
+              }
+            } else { # No range calculated for some of the stations, return NA
+              gap_size1 <- NA 
+              over_per1 <- NA
+            }
+            # Combine values to export         
+            over_save <- data.frame(station = station_order[j],
+              date = date,
+              overlap_left = NA, # No overlap to the left, first station
+              gap_left = NA,     # No gap to the left, first station
+              overlap_right = over_per1,
+              gap_right = gap_size1
+            )
+          }
+          if (type == "middle") {
+            station1 <- subset(input, station_name == station_order[j-1])
+            station2 <- subset(input, station_name == station_order[j])
+            station3 <- subset(input, station_name == station_order[j+1])
+            # Only calculate overlaps if actual ranges were calculated
+            if (station1$range > 1 & station2$range > 1) {
+              aux.data <- data.frame(
+                lon = c(station1$lon, station2$lon),
+                lat = c(station1$lat, station2$lat),
+                radius_m = c(station1$range, station2$range))
+              # Calculate overlap matrix
+              overlap_matrix <- suppressWarnings(get_overlap_matrix(aux.data))
+              # Calculate gap size when overlap is zero
+              if (overlap_matrix[2,1] == 0) {
+                pts <- sf::st_as_sf(aux.data, coords = c("lon", "lat"), crs = 4326)
+                pts_m <- sf::st_transform(pts, 3857)
+                # Create buffers in meters
+                buffs <- sf::st_buffer(pts_m, dist = aux.data$radius_m)
+                gap_size1 <- round(as.numeric(sf::st_distance(buffs[1,], buffs[2,])), 2)              
+                over_per1 <- 0 # No overlap!
+              } else {
+                gap_size1 <- 0 # No gap, some overlap found!
+                over_per1 <- round(overlap_matrix[1,2] / max(c(overlap_matrix[1,1], overlap_matrix[2,2])), 2)
+              }
+            } else { # No range calculated for some of the stations, return NA
+              gap_size1 <- NA 
+              over_per1 <- NA
+            }
+            if (station2$range > 1 & station3$range > 1) {
+              aux.data <- data.frame(
+                lon = c(station2$lon, station3$lon),
+                lat = c(station2$lat, station3$lat),
+                radius_m = c(station2$range, station3$range))
+              # Calculate overlap matrix
+              overlap_matrix <- suppressWarnings(get_overlap_matrix(aux.data))
+              # Calculate gap size when overlap is zero
+              if (overlap_matrix[2,1] == 0) {
+                pts <- sf::st_as_sf(aux.data, coords = c("lon", "lat"), crs = 4326)
+                pts_m <- sf::st_transform(pts, 3857)
+                # Create buffers in meters
+                buffs <- sf::st_buffer(pts_m, dist = aux.data$radius_m)
+                gap_size2 <- round(as.numeric(sf::st_distance(buffs[1,], buffs[2,])), 2)              
+                over_per2 <- 0 # No overlap!
+              } else {
+                gap_size2 <- 0 # No gap, some overlap found!
+                over_per2 <- round(overlap_matrix[1,2] / max(c(overlap_matrix[1,1], overlap_matrix[2,2])), 2)
+              }
+            } else { # No range calculated for some of the stations, return NA
+              gap_size2 <- NA 
+              over_per2 <- NA
+            }
+            # Combine values to export         
+            over_save <- data.frame(station = station_order[j],
+              date = date,
+              overlap_left = over_per1, # No overlap to the left, first station
+              gap_left = gap_size1,     # No gap to the left, first station
+              overlap_right = over_per2,
+              gap_right = gap_size2
+            )
+          }  
+          if (type == "last") {
+            station1 <- subset(input, station_name == station_order[j-1])
+            station2 <- subset(input, station_name == station_order[j])
+            # Only calculate overlaps if actual ranges were calculated
+            if (station1$range > 1 & station2$range > 1) {
+              aux.data <- data.frame(
+                lon = c(station1$lon, station2$lon),
+                lat = c(station1$lat, station2$lat),
+                radius_m = c(station1$range, station2$range))
+              # Calculate overlap matrix
+              overlap_matrix <- suppressWarnings(get_overlap_matrix(aux.data))
+              # Calculate gap size when overlap is zero
+              if (overlap_matrix[2,1] == 0) {
+                pts <- sf::st_as_sf(aux.data, coords = c("lon", "lat"), crs = 4326)
+                pts_m <- sf::st_transform(pts, 3857)
+                # Create buffers in meters
+                buffs <- sf::st_buffer(pts_m, dist = aux.data$radius_m)
+                gap_size1 <- round(as.numeric(sf::st_distance(buffs[1,], buffs[2,])), 2)              
+                over_per1 <- 0 # No overlap!
+              } else {
+                gap_size1 <- 0 # No gap, some overlap found!
+                over_per1 <- round(overlap_matrix[1,2] / max(c(overlap_matrix[1,1], overlap_matrix[2,2])), 2)
+              }
+            } else { # No range calculated for some of the stations, return NA
+              gap_size1 <- NA 
+              over_per1 <- NA
+            }
+            # Combine values to export         
+            over_save <- data.frame(station = station_order[j],
+              date = date,
+              overlap_left = over_per1, 
+              gap_left = gap_size1,     
+              overlap_right = NA, # No overlap, last station
+              gap_right = NA      # No gap, last station
+            )
+          }
+          return(over_save)
+        }
