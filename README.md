@@ -35,7 +35,6 @@ The main rangeR workflow is outlined below:
   <img src="vignettes/images/workflow.png" width="800">
 </p>
 
-<br>
 
 ## Installation
 
