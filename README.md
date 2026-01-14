@@ -32,7 +32,7 @@ If your study area encompassess **multiple stations** with expected overlapping 
 The main rangeR workflow is outlined below: 
 
 <p align="center">
-  <img src="Images/workflow.png" width="800">
+  <img src="vignettes/images/workflow.png" width="800">
 </p>
 
 <br>
@@ -111,7 +111,7 @@ plot_ranges(input = maria_ranges,
   station_order = c("MIL 6", "MIL 7", "MIL 8", "MIL 9", "MIL 10", "MIL 11", "MIL 12", "MIL 13"))
 ```
 <p align="center">
-  <img src="Images/plot_ranges.png" width="800">
+  <img src="vignettes/images/plot_ranges.png" width="800">
 </p>
 
 
@@ -134,7 +134,7 @@ plot_gaps(ranges = maria_ranges,
   station_order = station_order = c("MIL 6", "MIL 7", "MIL 8", "MIL 9", "MIL 10", "MIL 11", "MIL 12", "MIL 13")) 
 ```
 <p align="center">
-  <img src="Images/plot_gaps.png" width="800">
+  <img src="vignettes/images/plot_gaps.png" width="800">
 </p>
 
 
