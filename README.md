@@ -153,7 +153,7 @@ Contributions from anyone in the Movement Ecology/Acoustic Telemetry communities
 
 ## Acknowledgements
 
-This work is part of the Australia’s Integrated Marine Observing System (IMOS, www.imos.org.au). IMOS is enabled by the National Collaborative Research Infrastructure Strategy (NCRIS). It is operated by a consortium of institutions as an unincorporated joint venture, with the University of Tasmania as Lead Agent. IMOS has funded staff time to develop this tool.
+This work is part of the Australia’s Integrated Marine Observing System (IMOS, www.imos.org.au). IMOS is enabled by the National Collaborative Research Infrastructure Strategy (NCRIS). It is operated by a consortium of institutions as an unincorporated joint venture, with the University of Tasmania as Lead Agent. 
 
 
 ## Licence
