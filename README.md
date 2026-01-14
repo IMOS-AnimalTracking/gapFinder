@@ -1,4 +1,4 @@
-# rangeR<img src="vignettes/images/logo.png" align="right" width="120" />
+# rangeR<img src="vignettes/images/logo.png" align="right" width="160" />
 
 [![IMOS-AnimalTracking - rangeR](https://img.shields.io/static/v1?label=IMOS-AnimalTracking&message=rangeR&color=blue&logo=github)](https://github.com/IMOS-AnimalTracking/rangeR)
 [![issues - rangeR](https://img.shields.io/github/issues/IMOS-AnimalTracking/rangeR)](https://github.com/IMOS-AnimalTracking/rangeR/issues)
