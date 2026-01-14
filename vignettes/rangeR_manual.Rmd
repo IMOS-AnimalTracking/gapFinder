@@ -1,0 +1,28 @@
+---
+title: "rangeR Manual"
+subtitle: "Calculating daily ranges of acoustic receivers"
+output: 
+  html_document:
+    css: style.css
+    anchor_sections: false
+    toc: false
+    toc_float: 
+      collapsed: false
+      smooth_scroll: true
+    self_contained: true
+    theme: cerulean
+    highlight: pygments
+vignette: >
+  %\VignetteIndexEntry{rangeR_manual}
+  %\VignetteEngine{knitr::rmarkdown}
+  \usepackage[utf8]{inputenc}
+---
+--------------------------------------
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE)
+```
+
+In progres... 
+<br>
+
