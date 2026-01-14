@@ -130,7 +130,7 @@ Plot gaps between neighbour stations:
 plot_gaps(ranges = maria_ranges,
   gaps = maria_gaps1, 
   station_name = "station_name",
-  date = "2023-01-12",
+  date = "2023-01-13",
   station_order = station_order = c("MIL 6", "MIL 7", "MIL 8", "MIL 9", "MIL 10", "MIL 11", "MIL 12", "MIL 13")) 
 ```
 <p align="center">
