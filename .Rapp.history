@@ -1,3 +1,5 @@
+# spatial
+# stations
 aux.spatial <- input.example$spatial
 aux.spatial$stations <- aux.spatial$stations[rep(1, nrow(df.rmeta)),]
 aux.spatial$stations$Station.name <- df.rmeta$station_name
@@ -1399,7 +1401,5 @@ browseVignettes("RSP")
 getwd()
 setwd("..")
 library(devtools)
-check()
-check()
 check()
 install()

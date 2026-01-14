@@ -104,5 +104,15 @@ get_daily_dets <- function(input) {
         )
   ]
 
+  # Rename columns and tidy things up
+  names(out) <- c("date", "receiver_name_detected", 
+    "receiver_deployment_id_detected", "station_detected",
+    "Full_ID", "detection_type", "lat_detected",
+    "lon_detected", "number_detections", "receiver_name_transmission",
+    "receiver_deployment_id_transmission", "station_name_transmission",
+    "i.detection_type", "lat_transmission", "lon_transmission",
+    "transmissions", "efficiency", "distance_detected")
+  out[, c("detection_type", "i.detection_type") := NULL]
+
   return(out)
 }
