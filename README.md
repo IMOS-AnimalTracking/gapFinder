@@ -6,7 +6,7 @@
 [![forks - arrayMetrics](https://img.shields.io/github/forks/IMOS-AnimalTracking/arrayMetrics?style=social)](https://github.com/IMOS-AnimalTracking/arrayMetrics)
 [![watchers - arrayMetrics](https://img.shields.io/github/watchers/IMOS-AnimalTracking/arrayMetrics?style=social)](https://github.com/IMOS-AnimalTracking/arrayMetrics)
 
-Calculate acoustic receiver daily ranges from detections of sentinel transmitters
+Calculate performance metrics of acoustic receiver arrays from detections of sentinel transmitters
 
 <p align="center">
   <a href="#overview">Overview</a> •
