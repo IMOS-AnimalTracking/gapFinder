@@ -8,11 +8,11 @@ data_match(
   df,
   meta,
   station_name,
-  rec_deploy_id,
-  rec_deploy_datetime,
-  rec_recover_datetime,
-  rec_lat,
-  rec_lon
+  deploy_id,
+  deploy_datetime,
+  recover_datetime,
+  lat,
+  lon
 )
 }
 \arguments{
@@ -22,15 +22,15 @@ data_match(
 
 \item{station_name}{Column in the metadata file identifying the station names.}
 
-\item{rec_deploy_id}{Column in the metadata file identifying the receiver deployment number, if present. Otherwise, it will be created by default.}
+\item{deploy_id}{Column in the metadata file identifying the receiver deployment number, if present. Otherwise, it will be created by default.}
 
-\item{rec_deploy_datetime}{Column in the metadata file identifying the receiver deployment date and time in Y-m-d H:M:S format.}
+\item{deploy_datetime}{Column in the metadata file identifying the receiver deployment date and time in Y-m-d H:M:S format.}
 
-\item{rec_recover_datetime}{Column in the metadata file identifying the receiver recovery date and time in Y-m-d H:M:S format.}
+\item{recover_datetime}{Column in the metadata file identifying the receiver recovery date and time in Y-m-d H:M:S format.}
 
-\item{rec_lat}{Column in the metadata file identifying the deployment latitude.}
+\item{lat}{Column in the metadata file identifying the deployment latitude.}
 
-\item{rec_lon}{Column in the metadata file identifying the deployment longitude.}
+\item{lon}{Column in the metadata file identifying the deployment longitude.}
 }
 \value{
 Table contatining matched data

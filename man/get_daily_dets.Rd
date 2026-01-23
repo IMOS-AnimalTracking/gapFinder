@@ -4,10 +4,22 @@
 \alias{get_daily_dets}
 \title{Extract daily transmissions/detections information}
 \usage{
-get_daily_dets(input)
+get_daily_dets(input, id, deploy_id = NULL, station_name, lat, lon, tz)
 }
 \arguments{
 \item{input}{File exported from match_rec_meta()}
+
+\item{id}{Column in the metadata file identifying the receiver name as "model-serial" format (e.g. VR2W-12345)}
+
+\item{deploy_id}{Column in the metadata file identifying the receiver deployment number, if present. Otherwise, it will be created by default.}
+
+\item{station_name}{Column in the metadata file identifying the station names.}
+
+\item{lat}{Column in the metadata file identifying the deployment latitude.}
+
+\item{lon}{Column in the metadata file identifying the deployment longitude.}
+
+\item{tz}{The corresponding timezone of the timestamps. Default is UTC.}
 }
 \value{
 Data frame containing the summary transmissions/detections of sentinel transmitters and acoustic receivers.

@@ -4,12 +4,30 @@
 \alias{plot_ranges}
 \title{Plot daily ranges as timeseries}
 \usage{
-plot_ranges(input, station_order)
+plot_ranges(
+  input,
+  type = c("timeseries", "total", "both"),
+  linewidth = 0.15,
+  station_order,
+  start_time = NULL,
+  stop_time = NULL,
+  tz
+)
 }
 \arguments{
 \item{input}{File exported from get_daily_ranges()}
 
+\item{type}{Which plot to make, options include: timeseries, total, or both.}
+
+\item{linewidth}{Linewidth of lines for timeseries plot.}
+
 \item{station_order}{The names of the stations with expected overlapping ranges, from first to last.}
+
+\item{start_time}{Initial date and time of interest in Y-m-d H:M:S format. Default is entire data available.}
+
+\item{stop_time}{Final date and time of interest in Y-m-d H:M:S format. Default is entire data available.}
+
+\item{tz}{When start_time and stop_time are provided, their respective timezone.}
 }
 \value{
 A plot of the daily range variations.

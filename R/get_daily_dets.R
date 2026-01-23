@@ -4,6 +4,12 @@
 #' from all sentinel transmitters available within all receivers deployed. 
 #'
 #' @param input File exported from match_rec_meta()
+#' @param id Column in the metadata file identifying the receiver name as "model-serial" format (e.g. VR2W-12345)
+#' @param deploy_id Column in the metadata file identifying the receiver deployment number, if present. Otherwise, it will be created by default. 
+#' @param station_name Column in the metadata file identifying the station names.
+#' @param lat Column in the metadata file identifying the deployment latitude. 
+#' @param lon Column in the metadata file identifying the deployment longitude.
+#' @param tz The corresponding timezone of the timestamps. Default is UTC.
 #' 
 #' @return Data frame containing the summary transmissions/detections of sentinel transmitters and acoustic receivers.
 #' 
@@ -11,10 +17,19 @@
 #'
 #' @export
 #' 
-get_daily_dets <- function(input) {
+get_daily_dets <- function(input, 
+  id, 
+  deploy_id = NULL, 
+  station_name, 
+  lat, 
+  lon, 
+  tz) {
+  
   options(dplyr.summarise.inform = FALSE)
 
   # Force data.table
+  if (is.null(deploy_id))
+    deploy_id <- "deploy_id"
   det <- data.table::as.data.table(input$det)
   cfg <- data.table::as.data.table(input$cfg_transmitter)
   data.table::setDT(det)
@@ -31,7 +46,22 @@ get_daily_dets <- function(input) {
     stop("cfg does not contain column 'Full_ID'. Names are: ",
          paste(names(cfg), collapse = ", "))
   }
-  det <- det[det[["Full_ID"]] %in% cfg[["Full_ID"]], ]
+  det_recs <- det[det[["Full_ID"]] %in% cfg[["Full_ID"]], ]
+  # If range transmitters are present
+  if ("range_transmitter" %in% names(input)) {
+    range <- data.table::as.data.table(input$range_transmitter)
+    data.table::setDT(range)
+    det_trans <- det[det[["Full_ID"]] %in% range[["id"]], ]
+    det_trans$type <- "transmitter"
+    if (nrow(det_recs) > 0)
+      det_recs$type = "receiver"
+    det <- rbind(det_recs, det_trans, fill = TRUE)
+  } else {
+    det_recs$type = "receiver"
+    det <- det_recs
+  }
+
+  # Merge detections
   det[, aux := paste(Serial, Full_ID, sep = "_")]
   cfg[, aux := paste(Serial, Full_ID, sep = "_")]
   det[cfg, detection_type := "Transmission", on = "aux"]
@@ -39,22 +69,57 @@ get_daily_dets <- function(input) {
   det[, receiver_name :=
         paste(stringr::str_split_fixed(Model, "-", 2)[, 1], Serial, sep = "-")]
   det[, date := data.table::as.IDate(Time, tz = "UTC")]
+  # Change names to facilitate processing
+  names(det)[which(names(det) == station_name)] <- "station_name"
+  names(det)[which(names(det) == deploy_id)] <- "deploy_id"
+  names(det)[which(names(det) == lat)] <- "lat"
+  names(det)[which(names(det) == lon)] <- "lon"  
+  # Extract daily data
   df_day <- det[
     ,
     .(
-      lat = receiver_deployment_latitude[1],
-      lon = receiver_deployment_longitude[1],
+      lat = lat[1],
+      lon = lon[1],
       detections = .N
     ),
     by = c(
       "date",
       "receiver_name",
-      "receiver_deployment_id",
+      "type",
+      "deploy_id",
       "station_name",
       "Full_ID",
       "detection_type"
     )
   ]
+
+  # Add sentinel data daily transmissions, when these are present
+  if ("transmitter" %in% unique(df_day$type)) {
+    aux_trans <- input$range_transmitter
+    trans_day <- aux_trans %>%
+      dplyr::group_by(id, station_name, deploy_id) %>%
+      dplyr::reframe(date = seq(as.Date(deploy_datetime[1], tz = tz), 
+        as.Date(recover_datetime[1], tz = tz), 1))
+    trans_day$delay_time <- aux_trans$delay_time[match(trans_day$id, aux_trans$id)]
+    trans_day$deploy_lat <- aux_trans$lat[match(trans_day$id, aux_trans$id)]
+    trans_day$deploy_lon <- aux_trans$lon[match(trans_day$id, aux_trans$id)]
+    trans_day$trans <- round((24*60*60) / trans_day$delay_time, 0)
+    final_trans <- df_day[rep(1, nrow(trans_day)),]
+    final_trans$Full_ID <- as.character(final_trans$Full_ID)
+    final_trans$detection_type <- "Transmission"
+    # Match metadata
+    final_trans$Full_ID <- trans_day$id
+    final_trans$receiver_name <- trans_day$station_name
+    final_trans$date <- trans_day$date
+    final_trans$deploy_id <- trans_day$deploy_id
+    final_trans$lat <- trans_day$deploy_lat
+    final_trans$lon <- trans_day$deploy_lon
+    final_trans$detections <- trans_day$trans
+    # Combine datasets
+    df_day <- rbind(df_day, final_trans)
+  }
+
+  # Sort dataset
   trans <- df_day[detection_type == "Transmission" & detections > 100]
   data.table::setnames(trans, "detections", "transmissions")
   dets <- df_day[detection_type == "Detection"]
@@ -88,8 +153,9 @@ get_daily_dets <- function(input) {
         )
   ]
   # Rename columns and tidy things up
+  out[, c("type", "i.type") := NULL]
   names(out) <- c("date", "receiver_name_detected", 
-    "receiver_deployment_id_detected", "station_detected",
+    "deploy_id", "station_detected",
     "Full_ID", "detection_type", "lat_detected",
     "lon_detected", "number_detections", "receiver_name_transmission",
     "receiver_deployment_id_transmission", "station_name_transmission",

@@ -23,4 +23,3 @@ Matrix of station spatial overlap
 \description{
 Function used to calculate gaps between sequence of stations with expected overlapping range
 }
-\keyword{internal}

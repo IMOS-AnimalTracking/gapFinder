@@ -4,10 +4,18 @@
 \alias{get_daily_ranges}
 \title{Calculate daily ranges}
 \usage{
-get_daily_ranges(input)
+get_daily_ranges(
+  input,
+  parallel = FALSE,
+  n_cores = parallel::detectCores() - 1
+)
 }
 \arguments{
 \item{input}{File exported from get_daily_dets()}
+
+\item{parallel}{Should the daily ranges be calculated in parallel? Default is FALSE.}
+
+\item{n_cores}{How many cores should be used for parallel computing. Default it total available - 1.}
 }
 \value{
 A list containing the daily ranges ("rages") and daily logistic regression curves ("curves")

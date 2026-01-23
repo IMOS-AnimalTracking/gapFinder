@@ -4,7 +4,13 @@
 \alias{daily_gaps}
 \title{Calculate potential gaps in the station sequence}
 \usage{
-daily_gaps(input, station_name, station_order)
+daily_gaps(
+  input,
+  station_name,
+  station_order,
+  parallel = TRUE,
+  n_cores = parallel::detectCores() - 1
+)
 }
 \arguments{
 \item{input}{File output from get_daily_ranges()}
@@ -12,6 +18,10 @@ daily_gaps(input, station_name, station_order)
 \item{station_name}{Column in the metadata file identifying the station names.}
 
 \item{station_order}{The names of the stations with expected overlapping ranges, from first to last.}
+
+\item{parallel}{Should the daily gaps be calculated in parallel? Default is FALSE.}
+
+\item{n_cores}{How many cores should be used for parallel computing. Default it total available - 1.}
 }
 \value{
 Data frame containing the daily gaps and percentage of overlaps for all stations included in the "station_order" argument.

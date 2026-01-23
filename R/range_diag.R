@@ -10,11 +10,14 @@
 #' @export
 #' 
 range_diag <- function(input, station_order) {
+  options(dplyr.summarise.inform = FALSE)
+
   if(!all(station_order %in% unique(input$ranges$station_name)))
     stop("Some station names were not found in the input dataset. Please check names provided.")
   input <- subset(input$ranges, station_name %in% station_order)
   input$station_name <- factor(input$station_name, levels = station_order)
   deploy_time <- as.numeric(difftime(max(input$date), min(input$date), units = "days"))
+
   options(dplyr.summarise.inform = FALSE)
   # Calculate metrics at station level
   df_sum <- input %>%
@@ -27,9 +30,23 @@ range_diag <- function(input, station_order) {
       min_efficiency = round(min(daily_efficiency), 2),
       mean_efficiency = round(mean(daily_efficiency), 2),
       max_efficiency = round(max(daily_efficiency), 2),
-      min_range = round(min(range), 2),
-      mean_range = round(mean(range), 2),
-      max_range = round(max(range), 2))
+      min_range = if (all(is.na(range))) {
+          NA_real_
+        } else {
+          round(min(range, na.rm = TRUE), 2)
+        },
+      mean_range = if (all(is.na(range))) {
+          NA_real_
+        } else {
+          round(mean(range, na.rm = TRUE), 2)
+        },
+      max_range = if (all(is.na(range))) {
+          NA_real_
+        } else {
+          round(max(range, na.rm = TRUE), 2)
+        },
+    .groups = "drop")
+      
 
   return(suppressWarnings(df_sum))
 }

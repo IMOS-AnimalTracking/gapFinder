@@ -1,3 +1,3 @@
 library('testthat')
-library('rangeR')
-test_check('rangeR')
+library('arrayMetrics')
+test_check('arrayMetrics')

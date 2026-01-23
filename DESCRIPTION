@@ -14,10 +14,8 @@ LazyData: true
 RoxygenNote: 7.3.2
 Depends: R (>= 4.0)
 Imports:
-    FathomR,
     magrittr,
     stringr,
-    data.table,
     data.table,
     geosphere,
     tibble,
@@ -27,11 +25,14 @@ Imports:
     paletteer,
     utils,
     sf,
-    stats
+    stats,
+    foreach,
+    doParallel,
+    parallel
 Suggests:
     knitr,
     rmarkdown,
     testthat  
 VignetteBuilder: knitr
-URL: https://github.com/IMOS-AnimalTracking/rangeR
-BugReports: https://github.com/IMOS-AnimalTracking/rangeR/issues
+URL: https://github.com/IMOS-AnimalTracking/arrayMetrics
+BugReports: https://github.com/IMOS-AnimalTracking/arrayMetrics/issues
