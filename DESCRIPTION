@@ -24,6 +24,7 @@ Imports:
     patchwork,
     paletteer,
     utils,
+    ggspatial,
     sf,
     stats,
     foreach,

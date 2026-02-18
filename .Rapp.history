@@ -1,5 +1,3 @@
-aux.spatial <- input.example$spatial
-aux.spatial$stations <- aux.spatial$stations[rep(1, nrow(df.rmeta)),]
 aux.spatial$stations$Station.name <- df.rmeta$station_name
 aux.spatial$stations$Latitude <- df.rmeta$receiver_deployment_latitude
 aux.spatial$stations$Longitude <- df.rmeta$receiver_deployment_longitude
@@ -1398,8 +1396,10 @@ preparing ‘RSP’:
 browseVignettes("RSP")
 getwd()
 setwd("..")
-devtools::check()
-devtools::check()
-devtools::check()
+library(devtools)
+check()
+check()
+?unit
+?unit
+check()
 install()
-devtools::install()

@@ -54,7 +54,6 @@ daily_gaps <- function(input, station_name, station_order, parallel = TRUE, n_co
       aux <- subset(input, date == dates[ii]) 
       # Identify stations with missing range
       missing_idx <- which(!station_order %in% aux$station_name)
-      
       if (length(missing_idx) == (length(station_order) - 1)) {
         over_save <- data.frame(
           station = station_order,

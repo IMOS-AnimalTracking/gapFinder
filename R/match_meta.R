@@ -8,6 +8,7 @@
 #' @param type Column identifying the metadata deployment type when sentinel transmitters are also deployed in the study area. In these cases, options must include: receiver and transmitter
 #' @param delay When sentinel transmitters are present in the metadata, column name indentifying their respective delay times in secons.
 #' @param id Column in the metadata file identifying the receiver name as "model-serial" format (e.g. VR2W-12345)
+#' @param transmitter_id Column in the metadata file identifying the transmitter id format (e.g. A69-1601-12345)
 #' @param deploy_id Column in the metadata file identifying the receiver deployment number, if present. Otherwise, it will be created by default. 
 #' @param deploy_datetime Column in the metadata file identifying the receiver deployment date and time in Y-m-d H:M:S format. 
 #' @param recover_datetime Column in the metadata file identifying the receiver recovery date and time in Y-m-d H:M:S format. 
@@ -25,7 +26,8 @@ match_meta <- function(input,
   station_name,
   type = NULL,
   delay = NULL,
-  id, 
+  id,
+  transmitter_id, 
   deploy_id = NULL,
   deploy_datetime,
   recover_datetime,
@@ -69,10 +71,13 @@ match_meta <- function(input,
     if (nrow(recmeta) == 0)
       stop("No receiver recovery date and time information present in the metadata. Please check metadata for missing data.")
     # Add receiver serial info and select only receiver/transmitters in the detection data
+    # recmeta$id <- stringr::str_remove(recmeta$id, pattern = "-69")
     recmeta$Serial <- suppressWarnings(as.integer(stringr::str_split_fixed(recmeta[,"id"], pattern = "-", n = 2)[,2]))
     index <- which(recmeta$Serial %in% unique(input[['det']]$Serial))
     index2 <- which(recmeta[,"id"] %in% unique(input[['det']]$`Full ID`))
-    index <- c(index, index2)
+    index3 <- which(recmeta[,transmitter_id] %in% unique(input[['det']]$`Full ID`))
+    index <- c(index, index2, index3)
+    index <- index[-which(duplicated(index))]
     if (length(index) > 0) {
       recmeta <- recmeta[index,] 
     } else {

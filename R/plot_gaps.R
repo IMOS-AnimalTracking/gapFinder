@@ -83,10 +83,8 @@ plot_gaps <- function(ranges,
   if (gap_max < 200)
     gap_max <- 200
   gap_labs <- seq(0, gap_max, 200)
-
   # Add variable for gaps that couldn't be calculated
   # Account for first and last points
-
   df_gaps$left_type <- "Actual gap"
   index <- which(is.na(df_gaps$gap_left))[-1]
   if (length(index) > 0)
@@ -95,19 +93,18 @@ plot_gaps <- function(ranges,
   index <- which(is.na(df_gaps$gap_right))
   index <- index[-length(index)]
   if (length(index) > 0)
-    df_gaps$right_type[index] <- "Gap not calculated"
-  
+    df_gaps$right_type[index] <- "Gap not calculated" 
   # Colour scale
-  if (length(unique(df_gaps$right_type)) == 1) {
-    if (unique(df_gaps$right_type) == "Gap not calculated")
+  aux_gaps <- df_gaps[-c(1,nrow(df_gaps)),]
+  if (length(unique(aux_gaps$right_type)) == 1) {
+    if (unique(aux_gaps$right_type) == "Gap not calculated")
       gap_colours <- "red"
-    if (unique(df_gaps$right_type) == "Actual gap")
+    if (unique(aux_gaps$right_type) == "Actual gap")
       gap_colours <- "dodgerblue"
   } else {
-    df_gaps$right_type <- factor(df_gaps$right_type, levels = c("Actual gap", "Gap not calculated"))
+    aux_gaps$right_type <- factor(aux_gaps$right_type, levels = c("Actual gap", "Gap not calculated"))
     gap_colours <- c("dodgerblue", "red")
   }
-
   # Add zeros so plot works
   index <- which(is.na(df_gaps$gap_left))
   index <- index[-1]
@@ -126,6 +123,12 @@ plot_gaps <- function(ranges,
       check_overlap = TRUE) +
     ggplot2::coord_sf(xlim = plot_lim$X, ylim = plot_lim$Y) +
     ggplot2::theme_minimal() +
+    ggspatial::annotation_scale(
+      location = "bl",        # bottom left
+      width_hint = 0.3,       # relative width of scale bar
+      text_cex = 0.8,
+      line_width = 1,
+      height = ggplot2::unit(0.15, "cm")) +
     ggplot2::labs(title = paste("Date:", date), x = "", y = "")
   plot2 <- ggplot2::ggplot() + ggplot2::theme_bw() + 
     ggplot2::coord_cartesian(xlim = c(0, gap_max)) +

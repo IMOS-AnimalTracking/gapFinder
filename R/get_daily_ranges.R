@@ -1,4 +1,4 @@
-#' @title Calculate daily ranges
+#' @title Calculate daily ranges: 
 #'
 #' @description This function calculates daily acoustic detection ranges for all stations present in the dataset. 
 #'
@@ -13,14 +13,14 @@
 #' @export
 # Calculate daily ranges using logistic regression models
 
-get_daily_ranges <- function(input, parallel = FALSE,
+get_daily_ranges <- function(input, parallel = FALSE, max_anchor = 1400,
                              n_cores = parallel::detectCores() - 1) {
 
   data.table::setDT(input)
   input <- input[station_detected != "None"]
   max_dist <- max(input$distance_detected, na.rm = TRUE) + 100
-  if (max_dist < 1000) 
-    max_dist <- 1000 # Discuss with Hugh!
+  # if (max_dist < 1000) 
+  max_dist <- max_anchor 
   stations <- unique(input$station_detected)
   message("Calculating daily ranges")
   # Worker for a single station
@@ -35,7 +35,7 @@ get_daily_ranges <- function(input, parallel = FALSE,
       if (max(df_day$distance_detected) > 0) {
         df <- rbind(
           df_day[, .(x = distance_detected, y = efficiency)],
-          data.table::data.table(x = c(0.1, max_dist), y = c(0.99, 0.001))
+          data.table::data.table(x = c(50, max_dist), y = c(0.99, 0.001))
         )
         df[y >= 1, y := 0.9999]
         fit <- stats::lm(stats::qlogis(y) ~ x, data = df)

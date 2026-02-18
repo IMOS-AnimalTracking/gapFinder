@@ -4,13 +4,17 @@
 #' from all sentinel transmitters available within all receivers deployed. 
 #'
 #' @param input File exported from match_rec_meta()
+#' @param path_meta Path to the receiver deployment metadata csv file.
 #' @param id Column in the metadata file identifying the receiver name as "model-serial" format (e.g. VR2W-12345)
+#' @param transmitter_id Column in the metadata file identifying the transmitter id format (e.g. A69-1601-12345)
 #' @param deploy_id Column in the metadata file identifying the receiver deployment number, if present. Otherwise, it will be created by default. 
 #' @param station_name Column in the metadata file identifying the station names.
+#' @param deploy_datetime Column in the metadata file identifying the receiver deployment date and time in Y-m-d H:M:S format. 
+#' @param recover_datetime Column in the metadata file identifying the receiver recovery date and time in Y-m-d H:M:S format. 
 #' @param lat Column in the metadata file identifying the deployment latitude. 
 #' @param lon Column in the metadata file identifying the deployment longitude.
 #' @param tz The corresponding timezone of the timestamps. Default is UTC.
-#' 
+
 #' @return Data frame containing the summary transmissions/detections of sentinel transmitters and acoustic receivers.
 #' 
 #' @import data.table
@@ -19,14 +23,26 @@
 #' 
 get_daily_dets <- function(input, 
   id, 
+  path_meta,
+  transmitter_id,
   deploy_id = NULL, 
   station_name, 
+  deploy_datetime,
+  recover_datetime,
   lat, 
   lon, 
   tz) {
   
   options(dplyr.summarise.inform = FALSE)
 
+  # Load deployment metadata
+  recmeta <- suppressWarnings(utils::read.csv(path_meta))
+  # Sort metadata columns
+  recmeta[,deploy_datetime] <- as.POSIXct(recmeta[,deploy_datetime],
+    format = "%Y-%m-%d %H:%M:%S", tz = tz)
+  recmeta[,recover_datetime] <- as.POSIXct(recmeta[,recover_datetime],
+    format = "%Y-%m-%d %H:%M:%S", tz = tz)
+  
   # Force data.table
   if (is.null(deploy_id))
     deploy_id <- "deploy_id"
@@ -46,7 +62,7 @@ get_daily_dets <- function(input,
     stop("cfg does not contain column 'Full_ID'. Names are: ",
          paste(names(cfg), collapse = ", "))
   }
-  det_recs <- det[det[["Full_ID"]] %in% cfg[["Full_ID"]], ]
+  det_recs <- det[det[["Full_ID"]] %in% recmeta[,transmitter_id], ]
   # If range transmitters are present
   if ("range_transmitter" %in% names(input)) {
     range <- data.table::as.data.table(input$range_transmitter)
@@ -92,6 +108,30 @@ get_daily_dets <- function(input,
       "detection_type"
     )
   ]
+
+  # Add lost receivers data, if any
+  id_missing <- recmeta[which(!recmeta[,transmitter_id] %in% cfg$Full_ID),]
+  if (nrow(id_missing) > 0) {
+    id_save <- NULL
+    for (i in 1:nrow(id_missing)) {
+      id_run <- id_missing[i,]
+      dates <- seq(as.Date(id_run[,deploy_datetime], tz = tz), 
+        as.Date(id_run[,recover_datetime], tz = tz), 1)
+      id_help <- df_day[rep(1, length(dates)),]
+      # Add missing data
+      id_help$date <- dates
+      id_help$receiver_name <- id_run[,id]
+      id_help$deploy_id <- 1
+      id_help$station_name <- id_run[,station_name]
+      id_help$Full_ID <- id_run[,transmitter_id]
+      id_help$lat <- id_run[,lat]
+      id_help$lon <- id_run[,lon]
+      id_help$detection_type <- "Transmission"
+      id_help$detections <- 144 # Max number of daily transmissions
+      id_save <- rbind(id_save, id_help)
+    }
+    df_day <- rbind(df_day, id_save) 
+  }
 
   # Add sentinel data daily transmissions, when these are present
   if ("transmitter" %in% unique(df_day$type)) {
