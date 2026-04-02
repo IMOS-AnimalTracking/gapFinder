@@ -4,16 +4,36 @@
 \alias{get_daily_dets}
 \title{Extract daily transmissions/detections information}
 \usage{
-get_daily_dets(input, id, deploy_id = NULL, station_name, lat, lon, tz)
+get_daily_dets(
+  input,
+  receiver_id,
+  path_meta,
+  transmitter_id,
+  deploy_id = NULL,
+  station_name,
+  deploy_datetime,
+  recover_datetime,
+  lat,
+  lon,
+  tz
+)
 }
 \arguments{
 \item{input}{File exported from match_rec_meta()}
 
-\item{id}{Column in the metadata file identifying the receiver name as "model-serial" format (e.g. VR2W-12345)}
+\item{receiver_id}{Column in the metadata file identifying the receiver name as "model-serial" format (e.g. VR2W-12345)}
+
+\item{path_meta}{Path to the receiver deployment metadata csv file.}
+
+\item{transmitter_id}{Column in the metadata file identifying the transmitter id format (e.g. A69-1601-12345)}
 
 \item{deploy_id}{Column in the metadata file identifying the receiver deployment number, if present. Otherwise, it will be created by default.}
 
 \item{station_name}{Column in the metadata file identifying the station names.}
+
+\item{deploy_datetime}{Column in the metadata file identifying the receiver deployment date and time in Y-m-d H:M:S format.}
+
+\item{recover_datetime}{Column in the metadata file identifying the receiver recovery date and time in Y-m-d H:M:S format.}
 
 \item{lat}{Column in the metadata file identifying the deployment latitude.}
 

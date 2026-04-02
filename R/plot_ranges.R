@@ -4,6 +4,9 @@
 #' detection efficiency, and detection probability curves, for each station.
 #'
 #' @param input File exported from get_daily_ranges()
+#' @param range_type Type of range of interest to plot: "corrected" (default), or "modelled"
+#' @param range_flag Type of range flag: "modelled" only (default), or "all" (modelled plus minimum estimated)
+#' @param cor_flag Type of correction flag: "corrected" (default), or "all" (to plot all data)
 #' @param type Which plot to make, options include: timeseries, total, or both.
 #' @param station_order The names of the stations with expected overlapping ranges, from first to last.
 #' @param linewidth Linewidth of lines for timeseries plot.
@@ -18,7 +21,10 @@
 #' @export
 #' 
 plot_ranges <- function(input,
-  type = c("timeseries", "total", "both"),
+  range_type = "corrected",
+  range_flag = "modelled",
+  cor_flag = "corrected",
+  type = "both",
   linewidth = 0.15,
   station_order,
   start_time = NULL,
@@ -43,20 +49,35 @@ plot_ranges <- function(input,
   # Sort receiver order
   input$ranges <- subset(input$ranges, station_name %in% station_order)
   input$curves <- subset(input$curves, station_name %in% station_order)
-
   input$ranges$station_name <- factor(input$ranges$station_name,
     levels = station_order)
   input$curves$station_name <- factor(input$curves$station_name,
     levels = station_order)
+ 
+  # Sort range type
+  if (range_type == "corrected")
+    input$ranges$range_plot <- input$ranges$cor_range
+  if (range_type == "modelled")
+    input$ranges$range_plot <- input$ranges$range
 
-
+  # Apply filters
+  if (range_flag == "modelled") {
+    input$ranges <- input$ranges[which(input$ranges$range_flag == 1),]
+    if (cor_flag == "corrected") 
+      input$ranges <- input$ranges[which(input$ranges$cor_flag == 1),]
+    # Select curve data when filters are applied
+    input$ranges$aux <- paste(input$ranges$date, input$ranges$station_name, sep = "_")
+    input$curves$aux <- paste(input$curves$date, input$curves$station_name, sep = "_")
+    input$curves <- subset(input$curves, aux %in% unique(input$ranges$aux))
+  }
+  
   # Help to find stations where no range could be calulated
   station_missing <- input$ranges %>%
     dplyr::group_by(station_name) %>%
-    dplyr::summarise(min_range = if (all(is.na(range))) {
+    dplyr::summarise(min_range = if (all(is.na(range_plot))) {
           NA_real_
         } else {
-          round(min(range, na.rm = TRUE), 2)
+          round(min(range_plot, na.rm = TRUE), 2)
         }) %>%
     dplyr::filter(is.na(min_range))
   if (nrow(station_missing)) {
@@ -68,8 +89,8 @@ plot_ranges <- function(input,
   # Plot
   if (type %in% c("total", "both")) {
     plot_total <- ggplot2::ggplot() + ggplot2::theme_bw() +
-    ggplot2::geom_boxplot(data = subset(input$ranges, !is.na(range)), 
-      ggplot2::aes(x = station_name, group = station_name, y = range),
+    ggplot2::geom_boxplot(data = subset(input$ranges, !is.na(range_plot)), 
+      ggplot2::aes(x = station_name, group = station_name, y = range_plot),
       colour = paletteer::paletteer_d("ggsci::default_nejm")[4]) +
     ggplot2::labs(x = "Station name", y = "Range (m)") +
     ggplot2::theme(
@@ -79,8 +100,8 @@ plot_ranges <- function(input,
 
   if (type %in% c("timeseries", "both")) {
     plot1 <- ggplot2::ggplot() + ggplot2::theme_bw() +
-      ggplot2::geom_line(data = subset(input$ranges, !is.na(range)),   
-            ggplot2::aes(x = date, group = period, y = range), colour = paletteer::paletteer_d("ggsci::default_nejm")[4], linewidth = linewidth) +
+      ggplot2::geom_path(data = subset(input$ranges, !is.na(range_plot)),   
+            ggplot2::aes(x = date, group = period, y = range_plot), colour = paletteer::paletteer_d("ggsci::default_nejm")[4], linewidth = linewidth) +
       ggplot2::scale_x_date(date_labels = "%b %Y") +
         ggplot2::facet_wrap(~station_name, nrow = length(station_order)) +
         ggplot2::labs(x = "Day", y = "Range (m)") +
@@ -97,8 +118,8 @@ plot_ranges <- function(input,
           axis.text.x = ggplot2::element_text(size = 9),
           axis.text.y = ggplot2::element_text(size = 7))
     plot3 <- ggplot2::ggplot(
-        subset(input$curves, type == "curve"),
-        ggplot2::aes(x = x, y = y)
+        input$curves,
+        ggplot2::aes(x = x, y = p)
       ) +
       ggplot2::geom_line(ggplot2::aes(group = date), colour = "lightgray", linewidth = 1) +
       ggplot2::geom_smooth(

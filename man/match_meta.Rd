@@ -10,7 +10,8 @@ match_meta(
   station_name,
   type = NULL,
   delay = NULL,
-  id,
+  receiver_id,
+  transmitter_id,
   deploy_id = NULL,
   deploy_datetime,
   recover_datetime,
@@ -30,7 +31,9 @@ match_meta(
 
 \item{delay}{When sentinel transmitters are present in the metadata, column name indentifying their respective delay times in secons.}
 
-\item{id}{Column in the metadata file identifying the receiver name as "model-serial" format (e.g. VR2W-12345)}
+\item{receiver_id}{Column in the metadata file identifying the receiver name as "model-serial" format (e.g. VR2W-12345)}
+
+\item{transmitter_id}{Column in the metadata file identifying the transmitter id format (e.g. A69-1601-12345)}
 
 \item{deploy_id}{Column in the metadata file identifying the receiver deployment number, if present. Otherwise, it will be created by default.}
 

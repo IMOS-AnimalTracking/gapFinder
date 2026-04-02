@@ -7,7 +7,7 @@
 #' @param station_name Column in the metadata file identifying the station names.
 #' @param type Column identifying the metadata deployment type when sentinel transmitters are also deployed in the study area. In these cases, options must include: receiver and transmitter
 #' @param delay When sentinel transmitters are present in the metadata, column name indentifying their respective delay times in secons.
-#' @param id Column in the metadata file identifying the receiver name as "model-serial" format (e.g. VR2W-12345)
+#' @param receiver_id Column in the metadata file identifying the receiver name as "model-serial" format (e.g. VR2W-12345)
 #' @param transmitter_id Column in the metadata file identifying the transmitter id format (e.g. A69-1601-12345)
 #' @param deploy_id Column in the metadata file identifying the receiver deployment number, if present. Otherwise, it will be created by default. 
 #' @param deploy_datetime Column in the metadata file identifying the receiver deployment date and time in Y-m-d H:M:S format. 
@@ -26,7 +26,7 @@ match_meta <- function(input,
   station_name,
   type = NULL,
   delay = NULL,
-  id,
+  receiver_id,
   transmitter_id, 
   deploy_id = NULL,
   deploy_datetime,
@@ -40,14 +40,14 @@ match_meta <- function(input,
   # Load metadata file and check parameters
   recmeta <- suppressWarnings(utils::read.csv(path_meta))
   # Rename columns to make dplyr life easier
-  if(!id %in% colnames(recmeta)){stop("Cannot find id column in dataset, provide column name where variable can be found")}
-  names(recmeta)[which(names(recmeta) == id)] <- "id"
+  if(!receiver_id %in% colnames(recmeta)){stop("Cannot find receiver_id column in dataset, provide column name where variable can be found")}
+  names(recmeta)[which(names(recmeta) == receiver_id)] <- "receiver_id"
   # Check other columns
   if (is.null(type))
     recmeta$type <- "receiver"
   if (is.null(deploy_id)) { # Add deployment ID if NULL - to be used for plotting
     recmeta <- recmeta %>%
-      dplyr::group_by(id, type) %>%
+      dplyr::group_by(receiver_id, type) %>%
       dplyr::mutate(deploy_id = dplyr::row_number()) %>%
       dplyr::ungroup()
     recmeta <- as.data.frame(recmeta)
@@ -72,9 +72,9 @@ match_meta <- function(input,
       stop("No receiver recovery date and time information present in the metadata. Please check metadata for missing data.")
     # Add receiver serial info and select only receiver/transmitters in the detection data
     # recmeta$id <- stringr::str_remove(recmeta$id, pattern = "-69")
-    recmeta$Serial <- suppressWarnings(as.integer(stringr::str_split_fixed(recmeta[,"id"], pattern = "-", n = 2)[,2]))
+    recmeta$Serial <- suppressWarnings(as.integer(stringr::str_split_fixed(recmeta[,"receiver_id"], pattern = "-", n = 2)[,2]))
     index <- which(recmeta$Serial %in% unique(input[['det']]$Serial))
-    index2 <- which(recmeta[,"id"] %in% unique(input[['det']]$`Full ID`))
+    index2 <- which(recmeta[,"receiver_id"] %in% unique(input[['det']]$`Full ID`))
     index3 <- which(recmeta[,transmitter_id] %in% unique(input[['det']]$`Full ID`))
     index <- c(index, index2, index3)
     index <- index[-which(duplicated(index))]
@@ -83,6 +83,31 @@ match_meta <- function(input,
     } else {
       stop("No metadata found for the receivers present in the input Fathom files. Please check metadata for missing data.") 
     }
+    recmeta$Model <- suppressWarnings(stringr::str_split_fixed(recmeta[,"receiver_id"], pattern = "-", n = 3)[,1])
+    if ("NexTrak" %in% unique(recmeta$Model)) { # Add NexTrak serials
+      index <- which(recmeta$Model == "NexTrak")
+      recmeta$Serial[index] <- suppressWarnings(as.integer(stringr::str_split_fixed(recmeta[index, "receiver_id"], pattern = "-", n = 3)[,3]))
+    }
+
+  # Filter detections for only dates after and before deploy/recover:
+  message("Selecting only detections when receivers were deployed")
+  recmeta$deploy_datetime <- recmeta[,deploy_datetime] 
+  recmeta$recover_datetime <- recmeta[,recover_datetime] 
+  index <- input$det %>%
+  dplyr::mutate(row_id = dplyr::row_number(),
+         Time = as.Date(Time)) %>%
+  dplyr::inner_join(
+    recmeta %>%
+      dplyr::mutate(deploy_datetime = as.Date(deploy_datetime),
+             recover_datetime = as.Date(recover_datetime)),
+    by = "Serial", relationship = "many-to-many"
+  ) %>%
+  dplyr::filter(Time > deploy_datetime,
+         Time < recover_datetime) %>%
+  dplyr::pull(row_id)
+  input$det <- input$det[index,]
+  recmeta <- recmeta[,-which(names(recmeta) %in% c("deploy_datetime", "recover_datetime"))]
+
   # Copy input file for export
   output <- input 
   # List of possible files to be processed
@@ -99,6 +124,11 @@ match_meta <- function(input,
   pb <- utils::txtProgressBar(min = 0, max = length(files.aux), initial = 0, style = 3, width = 50)
   for (i in 1:length(files.aux)) {
     aux.file <- input[[files.aux[i]]]
+    index <- which(is.na(aux.file$Time))
+    if (length(index) > 0) {
+      aux.file$Time[index] <- as.POSIXct(aux.file$`Device Time (UTC)`[index], 
+        format = "%Y-%m-%d %H:%M:%S", tz = 'UTC')
+    }
     aux.matched <- data_match(df = aux.file, meta = recmeta,
       deploy_datetime = deploy_datetime,
       recover_datetime = recover_datetime, 

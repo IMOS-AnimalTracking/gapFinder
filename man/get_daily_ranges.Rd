@@ -6,20 +6,32 @@
 \usage{
 get_daily_ranges(
   input,
+  diag_data,
   parallel = FALSE,
+  max_anchor = 1500,
+  min_slope = -30,
+  max_slope = -0.01,
   n_cores = parallel::detectCores() - 1
 )
 }
 \arguments{
 \item{input}{File exported from get_daily_dets()}
 
+\item{diag_data}{Receiver diagnostics data (loaded with FathomR)}
+
 \item{parallel}{Should the daily ranges be calculated in parallel? Default is FALSE.}
+
+\item{max_anchor}{Maximum anchoring distance for near zero detection probability.}
+
+\item{min_slope}{Baseline minimum slope for logistic regression model.}
+
+\item{max_slope}{Baseline maximum slope for logistic regression model.}
 
 \item{n_cores}{How many cores should be used for parallel computing. Default it total available - 1.}
 }
 \value{
-A list containing the daily ranges ("rages") and daily logistic regression curves ("curves")
+A list containing the daily ranges ("rages") and daily logistic regression curves ("curves"), also the global ("global") model estimates
 }
 \description{
-This function calculates daily acoustic detection ranges for all stations present in the dataset.
+This function calculates daily acoustic detection ranges for all stations present in the dataset .
 }

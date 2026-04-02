@@ -1,36 +1,3 @@
-aux.bio$Release.site <- df.tmeta$transmitter_deployment_locality
-aux.bio <- aux.bio[,-ncol(aux.bio)]
-row.names(aux.bio) <- 1:nrow(aux.bio)
-input.example$bio <- aux.bio
-# spatial
-# stations
-aux.spatial <- input.example$spatial
-aux.spatial$stations <- aux.spatial$stations[rep(1, nrow(df.rmeta)),]
-aux.spatial$stations$Station.name <- df.rmeta$station_name
-aux.spatial$stations$Latitude <- df.rmeta$receiver_deployment_latitude
-aux.spatial$stations$Longitude <- df.rmeta$receiver_deployment_longitude
-aux.spatial$stations$Array <- df.rmeta$installation_name
-aux.spatial$stations <- aux.spatial$stations %>%#
-    dplyr::group_by(Station.name, Array) %>%#
-    dplyr::summarise(x = mean(Longitude),#
-      y = mean(Latitude),#
-      Range = 500)
-aux.spatial$stations <- as.data.frame(aux.spatial$stations)
-aux.spatial$stations <- aux.spatial$stations[,c("Station.name", #
-    "y", "x", "x", "y", "Array")]
-names(aux.spatial$stations)[2:3] <- c("Latitude", "Longitude")
-names(aux.spatial$stations)[4:5] <- c("x", "y")
-row.names(aux.spatial$stations) <- 1:nrow(aux.spatial$stations)
-aux.spatial$stations$Standard.name <- paste0("St.", row.names(aux.spatial$stations))
-# Convert locations to UTM
-aux.UTM <- aux.spatial$stations
-coordinates(aux.UTM) <- ~Longitude+Latitude
-sp::coordinates(aux.UTM) <- ~Longitude+Latitude
-aux.UTM
-proj4string(aux.UTM) <- CRS('+init=epsg:4326')
-sp::proj4string(aux.UTM) <- sf::CRS('+init=epsg:4326')
-sp::proj4string(aux.UTM) <- sp::CRS('+init=epsg:4326')
-aux.UTM <- aux.spatial$stations
 sp::coordinates(aux.UTM) <- ~Longitude+Latitude
 sp::proj4string(aux.UTM) <- sp::CRS('+init=epsg:4326')
 aux.UTM <- aux.spatial$stations
@@ -1403,3 +1370,33 @@ devtools::install(build_vignettes = TRUE)
 preparing ‘RSP’:
 browseVignettes("RSP")
 getwd()
+devtools::check()
+devtools::check()
+?plogis
+?plogis
+?coef
+devtools::check()
+devtools::check()
+?tryCatch
+devtools::check()
+devtools::check()
+devtools::check()
+devtools::check()
+devtools::document()
+devtools::check()
+rm man/get_daily_ranges.Rd
+devtools::document()
+devtools::check()
+@param min_slope Baseline minimum slope for logistic regression model#
+@param max_slope Baseline maximum slope for logistic regression model#
+@param n_cores How many cores should be used for parallel computing.
+devtools::check()
+devtools::check()
+devtools::check()
+devtools::document()
+devtools::document()
+devtools::document()
+devtools::check()
+devtools::install()
+devtools::check()
+devtools::install()

@@ -1,5 +1,5 @@
-Package: arrayMetrics
-Title: arrayMetrics
+Package: gapFinder
+Title: gapFinder
 Version: 1.0.0
 Date: 2026-01-14
 Authors@R: c(
@@ -20,11 +20,14 @@ Imports:
     geosphere,
     tibble,
     dplyr,
+    tidyr,
     ggplot2,
     patchwork,
     paletteer,
     utils,
     ggspatial,
+    terra,
+    minpack.lm,
     sf,
     stats,
     foreach,
@@ -35,5 +38,5 @@ Suggests:
     rmarkdown,
     testthat  
 VignetteBuilder: knitr
-URL: https://github.com/IMOS-AnimalTracking/arrayMetrics
-BugReports: https://github.com/IMOS-AnimalTracking/arrayMetrics/issues
+URL: https://github.com/IMOS-AnimalTracking/gapFinder
+BugReports: https://github.com/IMOS-AnimalTracking/gapFinder/issues

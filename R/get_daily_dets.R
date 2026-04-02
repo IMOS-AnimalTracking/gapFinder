@@ -5,7 +5,7 @@
 #'
 #' @param input File exported from match_rec_meta()
 #' @param path_meta Path to the receiver deployment metadata csv file.
-#' @param id Column in the metadata file identifying the receiver name as "model-serial" format (e.g. VR2W-12345)
+#' @param receiver_id Column in the metadata file identifying the receiver name as "model-serial" format (e.g. VR2W-12345)
 #' @param transmitter_id Column in the metadata file identifying the transmitter id format (e.g. A69-1601-12345)
 #' @param deploy_id Column in the metadata file identifying the receiver deployment number, if present. Otherwise, it will be created by default. 
 #' @param station_name Column in the metadata file identifying the station names.
@@ -22,7 +22,7 @@
 #' @export
 #' 
 get_daily_dets <- function(input, 
-  id, 
+  receiver_id, 
   path_meta,
   transmitter_id,
   deploy_id = NULL, 
@@ -67,7 +67,7 @@ get_daily_dets <- function(input,
   if ("range_transmitter" %in% names(input)) {
     range <- data.table::as.data.table(input$range_transmitter)
     data.table::setDT(range)
-    det_trans <- det[det[["Full_ID"]] %in% range[["id"]], ]
+    det_trans <- det[det[["Full_ID"]] %in% range[[transmitter_id]], ]
     det_trans$type <- "transmitter"
     if (nrow(det_recs) > 0)
       det_recs$type = "receiver"
@@ -110,7 +110,8 @@ get_daily_dets <- function(input,
   ]
 
   # Add lost receivers data, if any
-  id_missing <- recmeta[which(!recmeta[,transmitter_id] %in% cfg$Full_ID),]
+  aux_trans <- subset(df_day, detection_type == "Transmission")
+  id_missing <- recmeta[which(!recmeta[,transmitter_id] %in% aux_trans$Full_ID),]
   if (nrow(id_missing) > 0) {
     id_save <- NULL
     for (i in 1:nrow(id_missing)) {
@@ -120,7 +121,7 @@ get_daily_dets <- function(input,
       id_help <- df_day[rep(1, length(dates)),]
       # Add missing data
       id_help$date <- dates
-      id_help$receiver_name <- id_run[,id]
+      id_help$receiver_name <- id_run[,receiver_id]
       id_help$deploy_id <- 1
       id_help$station_name <- id_run[,station_name]
       id_help$Full_ID <- id_run[,transmitter_id]
@@ -137,18 +138,18 @@ get_daily_dets <- function(input,
   if ("transmitter" %in% unique(df_day$type)) {
     aux_trans <- input$range_transmitter
     trans_day <- aux_trans %>%
-      dplyr::group_by(id, station_name, deploy_id) %>%
+      dplyr::group_by(receiver_id, station_name, deploy_id) %>%
       dplyr::reframe(date = seq(as.Date(deploy_datetime[1], tz = tz), 
         as.Date(recover_datetime[1], tz = tz), 1))
-    trans_day$delay_time <- aux_trans$delay_time[match(trans_day$id, aux_trans$id)]
-    trans_day$deploy_lat <- aux_trans$lat[match(trans_day$id, aux_trans$id)]
-    trans_day$deploy_lon <- aux_trans$lon[match(trans_day$id, aux_trans$id)]
+    trans_day$delay_time <- aux_trans$delay_time[match(trans_day$receiver_id, aux_trans$receiver_id)]
+    trans_day$deploy_lat <- aux_trans$lat[match(trans_day$receiver_id, aux_trans$receiver_id)]
+    trans_day$deploy_lon <- aux_trans$lon[match(trans_day$receiver_id, aux_trans$receiver_id)]
     trans_day$trans <- round((24*60*60) / trans_day$delay_time, 0)
     final_trans <- df_day[rep(1, nrow(trans_day)),]
-    final_trans$Full_ID <- as.character(final_trans$Full_ID)
+    final_trans$Full_receiver_id <- as.character(final_trans$Full_receiver_id)
     final_trans$detection_type <- "Transmission"
     # Match metadata
-    final_trans$Full_ID <- trans_day$id
+    final_trans$Full_ID <- trans_day$receiver_id
     final_trans$receiver_name <- trans_day$station_name
     final_trans$date <- trans_day$date
     final_trans$deploy_id <- trans_day$deploy_id

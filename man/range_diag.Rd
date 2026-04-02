@@ -4,12 +4,30 @@
 \alias{range_diag}
 \title{Summary of range performance metrics}
 \usage{
-range_diag(input, station_order)
+range_diag(
+  input,
+  start_time = NULL,
+  stop_time = NULL,
+  tz = NULL,
+  station_order,
+  range_type = 1,
+  cor_type = 1
+)
 }
 \arguments{
 \item{input}{File exported from get_daily_ranges()}
 
+\item{start_time}{Initial date and time of interest in Y-m-d format. Default is entire data available.}
+
+\item{stop_time}{Final date and time of interest in Y-m-d format. Default is entire data available.}
+
+\item{tz}{When start_time and stop_time are provided, their respective timezone.}
+
 \item{station_order}{The names of the stations with expected overlapping ranges, from first to last.}
+
+\item{range_type}{Range flag to select: 1 = Modelled range (default), 2 = Minimum estimated range}
+
+\item{cor_type}{Correction flag to select: 1 = ML corrected range (default), 2 = Missing diagnostic data}
 }
 \value{
 A dataframe containing the range performance metrics

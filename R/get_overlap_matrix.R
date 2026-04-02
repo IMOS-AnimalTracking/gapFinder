@@ -22,7 +22,7 @@ get_overlap_matrix <- function(df,
   # Transform to a suitable projected CRS (meters)
   pts_m <- sf::st_transform(pts, crs = 3857)
   # Buffer each point by its radius in meters
-  buffs <- sf::st_buffer(pts_m, dist = df[[r]])
+  buffs <- sf::st_buffer(pts_m, dist = df$radius_m)
   # Compute pairwise intersections
   n <- nrow(df)
   mat <- matrix(0, n, n)

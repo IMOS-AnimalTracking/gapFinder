@@ -6,7 +6,10 @@
 \usage{
 plot_ranges(
   input,
-  type = c("timeseries", "total", "both"),
+  range_type = "corrected",
+  range_flag = "modelled",
+  cor_flag = "corrected",
+  type = "both",
   linewidth = 0.15,
   station_order,
   start_time = NULL,
@@ -16,6 +19,12 @@ plot_ranges(
 }
 \arguments{
 \item{input}{File exported from get_daily_ranges()}
+
+\item{range_type}{Type of range of interest to plot: "corrected" (default), or "modelled"}
+
+\item{range_flag}{Type of range flag: "modelled" only (default), or "all" (modelled plus minimum estimated)}
+
+\item{cor_flag}{Type of correction flag: "corrected" (default), or "all" (to plot all data)}
 
 \item{type}{Which plot to make, options include: timeseries, total, or both.}
 
