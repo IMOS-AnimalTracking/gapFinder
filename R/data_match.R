@@ -15,14 +15,7 @@
 #' 
 #' @keywords internal
 #'  
-data_match <- function(df, 
-	meta, 
-	station_name, 
-	deploy_id, 
-	deploy_datetime,
-  recover_datetime, 
-  lat, 
-  lon) {
+data_match <- function(df, meta, station_name, deploy_id, deploy_datetime, recover_datetime, lat, lon) {
   # Fixed timestamps (points)
   points <- data.table::data.table(df)
   # Time intervals with values to attach
@@ -48,5 +41,6 @@ data_match <- function(df,
   ))
   # Tidy things up
   result <- tibble::as_tibble(result[,c(names(points), deploy_id, station_name, lat, lon)])
+  names(result)[which(names(result) == station_name)] <- "station_name"
   return(result)
 }

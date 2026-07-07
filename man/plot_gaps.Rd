@@ -4,7 +4,7 @@
 \alias{plot_gaps}
 \title{Plot potential gaps in the sequence of stations}
 \usage{
-plot_gaps(ranges, gaps, date, station_name, station_order)
+plot_gaps(ranges, gaps, date, station_order)
 }
 \arguments{
 \item{ranges}{File exported from get_daily_ranges()}
@@ -12,8 +12,6 @@ plot_gaps(ranges, gaps, date, station_name, station_order)
 \item{gaps}{File exported from daily_gaps()}
 
 \item{date}{Date of interest to plot}
-
-\item{station_name}{Column in the metadata file identifying the station names.}
 
 \item{station_order}{The names of the stations with expected overlapping ranges, from first to last.}
 }

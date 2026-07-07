@@ -11,6 +11,7 @@ Description: Calculate acoustic receiver daily ranges from detections of sentine
 License: GPL-3 + file LICENSE
 Encoding: UTF-8
 LazyData: true
+LazyDataCompression: xz
 RoxygenNote: 7.3.2
 Depends: R (>= 4.0)
 Imports:
@@ -26,7 +27,6 @@ Imports:
     paletteer,
     utils,
     ggspatial,
-    terra,
     minpack.lm,
     sf,
     stats,

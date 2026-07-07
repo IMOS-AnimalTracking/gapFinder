@@ -73,6 +73,13 @@ match_meta <- function(input,
     # Add receiver serial info and select only receiver/transmitters in the detection data
     # recmeta$id <- stringr::str_remove(recmeta$id, pattern = "-69")
     recmeta$Serial <- suppressWarnings(as.integer(stringr::str_split_fixed(recmeta[,"receiver_id"], pattern = "-", n = 2)[,2]))
+    recmeta$Model <- suppressWarnings(stringr::str_split_fixed(recmeta[,"receiver_id"], pattern = "-", n = 2)[,1])
+    if ("NexTrak" %in% unique(recmeta$Model)) { 
+      index <- which(recmeta$Model == "NexTrak")
+      recmeta$Serial[index] <- stringr::str_replace(recmeta$receiver_id[index], pattern = "NexTrak-R1-", replacement = "")
+    }
+    recmeta$Serial <- as.integer(recmeta$Serial)
+    # Select only detections from receivers/transmitters present in the metadata
     index <- which(recmeta$Serial %in% unique(input[['det']]$Serial))
     index2 <- which(recmeta[,"receiver_id"] %in% unique(input[['det']]$`Full ID`))
     index3 <- which(recmeta[,transmitter_id] %in% unique(input[['det']]$`Full ID`))
@@ -83,12 +90,7 @@ match_meta <- function(input,
     } else {
       stop("No metadata found for the receivers present in the input Fathom files. Please check metadata for missing data.") 
     }
-    recmeta$Model <- suppressWarnings(stringr::str_split_fixed(recmeta[,"receiver_id"], pattern = "-", n = 3)[,1])
-    if ("NexTrak" %in% unique(recmeta$Model)) { # Add NexTrak serials
-      index <- which(recmeta$Model == "NexTrak")
-      recmeta$Serial[index] <- suppressWarnings(as.integer(stringr::str_split_fixed(recmeta[index, "receiver_id"], pattern = "-", n = 3)[,3]))
-    }
-
+ 
   # Filter detections for only dates after and before deploy/recover:
   message("Selecting only detections when receivers were deployed")
   recmeta$deploy_datetime <- recmeta[,deploy_datetime] 
@@ -112,44 +114,55 @@ match_meta <- function(input,
   output <- input 
   # List of possible files to be processed
   files.aux <- names(input)
-  files.tot <- c("attitude", "battery", "cfg_channel", 
-    "clock_ref", "depth", "det", "diag", "event", "event_init",
-    "event_offload", "health_vr2ar", "temp")
-  files.aux <- files.tot[which(files.tot %in% files.aux)]
+  if ("NexTrak" %in% unique(recmeta$Model)) { 
+      files.tot <- c("attitude", "battery", "cfg_channel", 
+        "clock_ref", "depth", "det", "diag", "diag_nextrak", "event", "event_init",
+        "event_offload", "health_vr2ar", "temp")
+    } else {
+      files.tot <- c("attitude", "battery", "cfg_channel", 
+        "clock_ref", "depth", "det", "diag", "event", "event_init",
+        "event_offload", "health_vr2ar", "temp")
+    }
+  files.aux <- files.aux[which(files.aux %in% files.tot)]
   if (length(files.aux) == 0) 
     stop("Files present in FathomR input not recognised. Options include:
-      'attitude', 'battery', 'cfg_channel', 'clock_ref', 'depth', 'det', 'diag', 'event', 'event_init', 'event_offload', 'health_vr2ar', 'temp'")
+      'attitude', 'battery', 'cfg_channel', 'clock_ref', 'depth', 'det', 'diag', 'diag_nextrak', 'event', 'event_init', 'event_offload', 'health_vr2ar', 'temp'")
   # Processing starts
   message("Matching receiver deployment metadata")
   pb <- utils::txtProgressBar(min = 0, max = length(files.aux), initial = 0, style = 3, width = 50)
   for (i in 1:length(files.aux)) {
     aux.file <- input[[files.aux[i]]]
-    index <- which(is.na(aux.file$Time))
-    if (length(index) > 0) {
-      aux.file$Time[index] <- as.POSIXct(aux.file$`Device Time (UTC)`[index], 
-        format = "%Y-%m-%d %H:%M:%S", tz = 'UTC')
-    }
-    aux.matched <- data_match(df = aux.file, meta = recmeta,
-      deploy_datetime = deploy_datetime,
-      recover_datetime = recover_datetime, 
-      deploy_id = deploy_id, 
-      station_name = station_name, 
-      lat = lat, 
-      lon = lon)
-    # Replace original file by matched file
-    index <- which(names(output) == files.aux[i])
-    output[[index]] <- aux.matched
+    if (nrow(aux.file) > 0) {
+      index <- which(is.na(aux.file$Time))
+      if (length(index) > 0) {
+        aux.file$Time[index] <- as.POSIXct(aux.file$`Device Time (UTC)`[index], 
+          format = "%Y-%m-%d %H:%M:%S", tz = 'UTC')
+      }
+      aux.matched <- data_match(df = aux.file, 
+        meta = recmeta,
+        deploy_datetime = deploy_datetime,
+        recover_datetime = recover_datetime, 
+        deploy_id = deploy_id, 
+        station_name = station_name, 
+        lat = lat, 
+        lon = lon)
+      # Replace original file by matched file
+      index <- which(names(output) == files.aux[i])
+      output[[index]] <- aux.matched
+    }   
     utils::setTxtProgressBar(pb, i) 
   }
   close(pb)
   # If sentinel transmitters are found in metadata
-  if ("transmitter" %in% recmeta[,type]) {
-    if (is.null(delay))
-      stop("Sentinel transmitters found in the metadata. Please provide the column identifying their respective delay times in seconds.")
-    names(recmeta)[which(names(recmeta) == type)] <- "type"
-    transmeta <- recmeta %>%
-      dplyr::filter(type == "transmitter")    
-    output$range_transmitter <- transmeta
-  }
+  if (!is.null(type)) {
+    if ("transmitter" %in% recmeta[,type]) {
+      if (is.null(delay))
+        stop("Sentinel transmitters found in the metadata. Please provide the column identifying their respective delay times in seconds.")
+      names(recmeta)[which(names(recmeta) == type)] <- "type"
+      transmeta <- recmeta %>%
+        dplyr::filter(type == "transmitter")    
+      output$range_transmitter <- transmeta
+    }
+  }  
   return(output)
 }

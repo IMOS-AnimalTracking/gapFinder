@@ -22,7 +22,7 @@ Calculate performance metrics of acoustic receiver arrays from detections of sen
 
 ## Overview
 
-gapFinder is an R package aimed at calculating **daily detection ranges** of acoustic receivers. Daily range calculations are performed based on **detections from sentinel transmitters** deployed at fixed locations away from the acoustic receivers. Sentinel transmitters can be either: 
+gapFinder is an R package aimed at calculating **daily detection ranges and potential gaps** of acoustic receiver arrays. Daily range calculations are performed based on **detections from sentinel transmitters** deployed at fixed locations away from the acoustic receivers. Sentinel transmitters can be either: 
  
  1. Neighbour acoustic receivers with internal transmitters turned on
  2. Range test transmitters
@@ -57,7 +57,7 @@ browseVignettes("gapFinder")
 
 ## Key functionalities
 
-Match Fathom file detections with receiver deployment metadata:
+Match Fathom detections with receiver deployment metadata:
 
 ```r
 maria_sort <- match_rec_meta(input = maria_dets,

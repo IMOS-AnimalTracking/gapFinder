@@ -5,7 +5,6 @@
 #' @param ranges File exported from get_daily_ranges()
 #' @param gaps File exported from daily_gaps()
 #' @param date Date of interest to plot
-#' @param station_name Column in the metadata file identifying the station names.
 #' @param station_order The names of the stations with expected overlapping ranges, from first to last.
 #' 
 #' @return Plot of station ranges, and gap sizes for that day.
@@ -18,23 +17,28 @@
 plot_gaps <- function(ranges, 
   gaps, 
   date, 
-  station_name, 
   station_order) {
 
   options(dplyr.summarise.inform = FALSE)
   # Rename station name to facilitate indexing
   ranges <- ranges$ranges  
-  names(ranges)[which(names(ranges) == station_name)] <- "station_name"
   ranges <- subset(ranges, station_name %in% station_order)
   if (nrow(ranges) == 0)
     stop("station_order stations not present in the data. Please check ranges file.")
   ranges$station_name <- factor(ranges$station_name, levels = station_order)
+  
   # Get all station points
   date <- as.Date(date, tz = "UTC")
+  ranges <- as.data.frame(ranges)
   df_locs <- ranges %>%
     dplyr::group_by(station_name) %>%
-    dplyr::summarise(x = mean(lon),
-      y = mean(lat))
+    dplyr::summarise(x = lon[1],
+      y = lat[1])
+  ranges <- ranges[which(ranges$date == date),]
+  df_locs$range_flag <- ranges$range_flag[match(df_locs$station_name, ranges$station_name)]
+  df_locs$cor_flag <- ranges$cor_flag[match(df_locs$station_name, ranges$station_name)]
+  ranges <- ranges[which(ranges$date == date),]
+  
   # Extract range data
   date.aux <- date
   aux.data <- subset(ranges, date == date.aux)
@@ -65,19 +69,19 @@ plot_gaps <- function(ranges,
   plot_lab <- sf::st_as_sf(df_label, coords = c("x", "y"), crs = 4326)
   plot_lab_m <- sf::st_transform(plot_lab, 3857)
   # Gap size boundaries
-  if (length(unique(df_gaps$gap_left)) == 1) {
-      if (is.na(unique(df_gaps$gap_left))) {
+  if (length(unique(df_gaps$gap_before)) == 1) {
+      if (is.na(unique(df_gaps$gap_before))) {
       gap1 <- 200
     }
   } else {
-    gap1 <- round(max(df_gaps$gap_left, na.rm = TRUE), 0)  
+    gap1 <- round(max(df_gaps$gap_before, na.rm = TRUE), 0)  
   }
-  if (length(unique(df_gaps$gap_right)) == 1) {
-      if (is.na(unique(df_gaps$gap_right))) {
+  if (length(unique(df_gaps$gap_after)) == 1) {
+      if (is.na(unique(df_gaps$gap_after))) {
       gap2 <- 200
     }
   } else {
-    gap2 <- round(max(df_gaps$gap_right, na.rm = TRUE), 0)  
+    gap2 <- round(max(df_gaps$gap_after, na.rm = TRUE), 0)  
   }
   gap_max <- max(gap1, gap2)
   if (gap_max < 200)
@@ -86,11 +90,11 @@ plot_gaps <- function(ranges,
   # Add variable for gaps that couldn't be calculated
   # Account for first and last points
   df_gaps$left_type <- "Actual gap"
-  index <- which(is.na(df_gaps$gap_left))[-1]
+  index <- which(is.na(df_gaps$gap_before))[-1]
   if (length(index) > 0)
     df_gaps$left_type[index] <- "Gap not calculated"
   df_gaps$right_type <- "Actual gap"
-  index <- which(is.na(df_gaps$gap_right))
+  index <- which(is.na(df_gaps$gap_after))
   index <- index[-length(index)]
   if (length(index) > 0)
     df_gaps$right_type[index] <- "Gap not calculated" 
@@ -106,18 +110,28 @@ plot_gaps <- function(ranges,
     gap_colours <- c("dodgerblue", "red")
   }
   # Add zeros so plot works
-  index <- which(is.na(df_gaps$gap_left))
+  index <- which(is.na(df_gaps$gap_before))
   index <- index[-1]
   if (length(index) > 0)
-    df_gaps$gap_left[index] <- 0
-  index <- which(is.na(df_gaps$gap_right))
+    df_gaps$gap_before[index] <- 0
+  index <- which(is.na(df_gaps$gap_after))
   index <- index[-length(index)]
   if (length(index) > 0)
-    df_gaps$gap_right[index] <- 0
-  
+    df_gaps$gap_after[index] <- 0
+
+  # Range values
+  max_before <- (ceiling(round(max(df_gaps$gap_before, na.rm = TRUE), 0) / 100) * 100) * -1
+  max_after <- (ceiling(round(max(df_gaps$gap_after, na.rm = TRUE), 0) / 100) * 100)
+
+  # Add zeros: avoid messages when plotting
+  df_gaps$gap_before[is.na(df_gaps$gap_before)] <- 0
+  df_gaps$gap_after[is.na(df_gaps$gap_after)] <- 0
+
   # Plot
   plot1 <- ggplot2::ggplot() +
-    ggplot2::geom_sf(data = buffs, fill = "skyblue", alpha = 0.3, color = "skyblue") +
+    ggplot2::geom_sf(data = buffs, ggplot2::aes(fill = range_flag, linetype = cor_flag), 
+      alpha = 0.3, linewidth = 0.5) +
+    ggplot2::scale_fill_manual(values = paletteer::paletteer_d("colorBlindness::SteppedSequential5Steps")[c(11,18)]) +
     ggplot2::geom_sf(data = pts_m, color = "black", size = 2) +
     ggplot2::geom_sf_text(data = plot_lab_m, ggplot2::aes(label = station_name), colour = "black",
       check_overlap = TRUE) +
@@ -125,28 +139,43 @@ plot_gaps <- function(ranges,
     ggplot2::theme_minimal() +
     ggspatial::annotation_scale(
       location = "bl",        # bottom left
-      width_hint = 0.3,       # relative width of scale bar
+      width_hint = 0.2,       # relative width of scale bar
       text_cex = 0.8,
       line_width = 1,
-      height = ggplot2::unit(0.15, "cm")) +
-    ggplot2::labs(title = paste("Date:", date), x = "", y = "")
+      height = ggplot2::unit(0.15, "cm"),
+      unit_category = "metric") +
+    ggplot2::labs(title = paste("Date:", date), x = "", y = "") +
+    ggplot2::guides(
+      fill = ggplot2::guide_legend(order = 1),
+      linetype = ggplot2::guide_legend(order = 2)
+    ) 
   plot2 <- ggplot2::ggplot() + ggplot2::theme_bw() + 
-    ggplot2::coord_cartesian(xlim = c(0, gap_max)) +
-    ggplot2::geom_pointrange(data = df_gaps[2:nrow(df_gaps),], position = ggplot2::position_dodge(width = 0.1),
-      ggplot2::aes(x = 0, xmin = 0 + gap_left, xmax = 0, y = station, colour = left_type),
-      size = 0.1, linewidth = 1) +
-    ggplot2::scale_colour_manual(values = gap_colours) +
-    ggplot2::scale_x_continuous(breaks = gap_labs) +
-    ggplot2::labs(y = "Station name", x = "Gap size (m)", colour = "", title = "West") 
-  plot3 <- ggplot2::ggplot() + ggplot2::theme_bw() + 
-    ggplot2::coord_cartesian(xlim = c(0, gap_max)) +
-    ggplot2::geom_pointrange(data = df_gaps[1:(nrow(df_gaps)-1),], position = ggplot2::position_dodge(width = 0.1),
-      ggplot2::aes(x = 0, xmin = 0 + gap_right, xmax = 0, y = station, colour = right_type),
-      size = 0.1, linewidth = 1) +
-    ggplot2::scale_colour_manual(values = gap_colours) +
-    ggplot2::scale_x_continuous(breaks = gap_labs) +
-    ggplot2::labs(y = "", x = "Gap size (m)", colour = "", title = "East") 
-  plot2 <- (plot2 + plot3) + patchwork::plot_layout(guides = "collect")
+    ggplot2::coord_cartesian(xlim = c(max_before, max_after)) +
+    ggplot2::geom_pointrange(data = df_gaps, position = ggplot2::position_dodge(width = 0.1),
+      ggplot2::aes(x = 0, xmin = 0 - gap_before, xmax = 0, y = station, colour = range_flag, linetype = cor_flag),
+      size = 0.3, linewidth = 1) +
+    ggplot2::geom_pointrange(data = df_gaps, position = ggplot2::position_dodge(width = 0.1),
+      ggplot2::aes(x = 0, xmin = 0 + gap_after, xmax = 0, y = station, colour = range_flag, linetype = cor_flag),
+      size = 0.3, linewidth = 1) +
+    ggplot2::scale_color_manual(values = paletteer::paletteer_d("colorBlindness::SteppedSequential5Steps")[c(11,18)]) +
+    ggplot2::guides(colour = ggplot2::guide_legend(order = 1),
+      linetype = ggplot2::guide_legend(order = 2)) + 
+    ggplot2::labs(y = "Station name", x = "Gap size (m)") 
+  # Fix axes
+  if (max_before == 0 & max_after == 0) {
+    plot2 <- plot2 + 
+    ggplot2::scale_x_continuous(breaks = c(-0.025, 0, 0.025),
+      labels = c("", "0", ""),    
+       sec.axis = ggplot2::sec_axis(~ . *1, name = "Position", 
+          breaks = c(-0.025, 0.025), labels = c("Before", "After"))) 
+  } 
+  if (max_before != 0 & max_after != 0) {
+    plot2 <- plot2 + 
+    ggplot2::scale_x_continuous(breaks = seq(max_before, max_after, 100),
+      labels = c(seq(max_before*-1, 100, -100), seq(0, max_after, 100)),    
+       sec.axis = ggplot2::sec_axis(~ . *1, name = "Position", 
+          breaks = c(-100, 100), labels = c("Before", "After"))) 
+  }  
   plot_save <- (plot1 | plot2) + patchwork::plot_layout(widths = c(4,3))
   return(plot_save) 
 }

@@ -59,25 +59,44 @@ gaps_diag <- function(input,
   max_pos <- ceiling(round(max(gaps_filt$mean_after + gaps_filt$sd_after, na.rm = TRUE), 0) / 50) * 50
   # Reverse negative values  
   gaps_filt$mean_before <- gaps_filt$mean_before *-1
+  
   # Plot summary gaps
   plot_gaps <- ggplot2::ggplot() + ggplot2::theme_bw() +
-      ggplot2::geom_pointrange(data = gaps_filt, 
-          ggplot2::aes(x = station_name, y = mean_before, ymin = mean_before - sd_before, ymax = mean_before),
-          colour = paletteer::paletteer_d("ggsci::nrc_npg")[1]) +
-      ggplot2::geom_pointrange(data = gaps_filt, 
-          ggplot2::aes(x = station_name, y = mean_after, ymin = mean_after + sd_after, ymax = mean_after),
-          colour = paletteer::paletteer_d("ggsci::nrc_npg")[6]) +
-      ggplot2::geom_hline(yintercept = 0, lty = 'dashed') +
-      ggplot2::scale_y_continuous(breaks = seq(max_neg, max_pos, 50),
-          labels = c(seq(max_neg * -1, 50, -50), seq(0, max_pos, 50)),
-          sec.axis = ggplot2::sec_axis(~ . *1, name = "Position", 
-          breaks = c(-100, 100), labels = c("Before", "After"))) +
-      ggplot2::geom_text(data = gaps_filt, 
-          ggplot2::aes(y = (mean_before - sd_before) - 20, x = station_name, label = days_before), colour = paletteer::paletteer_d("ggsci::nrc_npg")[1]) +    
-      ggplot2::geom_text(data = gaps_filt, 
-          ggplot2::aes(y = (mean_after + sd_after) + 20, x = station_name, label = days_after), colour = paletteer::paletteer_d("ggsci::nrc_npg")[6]) +    
-      ggplot2::labs(y = "Gap size (m)", x = "Station Name") +
-      ggplot2::coord_flip()
+    ggplot2::geom_pointrange(
+      data = gaps_filt,
+      ggplot2::aes(x = station_name, y = mean_before,
+                  ymin = mean_before - sd_before, ymax = mean_before),
+      colour = paletteer::paletteer_d("ggsci::nrc_npg")[1],
+      na.rm = TRUE
+    ) +
+    ggplot2::geom_pointrange(
+      data = gaps_filt,
+      ggplot2::aes(x = station_name, y = mean_after,
+                  ymin = mean_after + sd_after, ymax = mean_after),
+      colour = paletteer::paletteer_d("ggsci::nrc_npg")[6],
+      na.rm = TRUE
+    ) +
+    ggplot2::geom_text(
+      data = gaps_filt,
+      ggplot2::aes(y = (mean_before - sd_before) - 20,
+                  x = station_name, label = days_before),
+      colour = paletteer::paletteer_d("ggsci::nrc_npg")[1],
+      na.rm = TRUE
+    ) +
+    ggplot2::geom_text(
+      data = gaps_filt,
+      ggplot2::aes(y = (mean_after + sd_after) + 20,
+                  x = station_name, label = days_after),
+      colour = paletteer::paletteer_d("ggsci::nrc_npg")[6],
+      na.rm = TRUE
+    ) +      
+    ggplot2::geom_hline(yintercept = 0, lty = 'dashed') +
+    ggplot2::scale_y_continuous(breaks = seq(max_neg, max_pos, 50),
+         labels = c(seq(max_neg * -1, 50, -50), seq(0, max_pos, 50)),
+         sec.axis = ggplot2::sec_axis(~ . *1, name = "Position", 
+         breaks = c(-100, 100), labels = c("Before", "After"))) +    
+    ggplot2::labs(y = "Gap size (m)", x = "Station Name") +
+    ggplot2::coord_flip()
 
   return(list(gaps = gaps_filt, gaps_plot = plot_gaps))
 }

@@ -24,7 +24,7 @@ get_daily_ranges <- function(input,
                             max_slope = -0.01,
                             n_cores = parallel::detectCores() - 1) {
 
-  # Get daily means and scale diagnostic noise to account for scale differences
+  # Get daily means
   df_diag <- diag_data$diag %>%
     dplyr::mutate(noise_num = as.numeric(`Noise Mean (mV)`),
       temp_num = as.numeric(`Ambient Temperature (deg C)`)) %>%
@@ -32,16 +32,15 @@ get_daily_ranges <- function(input,
     dplyr::mutate(date = as.Date(Time, tz = "UTC")) %>%
     dplyr::group_by(station_name, date) %>%
     dplyr::summarise(noise = mean(noise_num, na.rm = TRUE),
-      temp = mean(temp_num, na.rm = TRUE),)
+      temp = mean(temp_num, na.rm = TRUE))
 
-  # summary(df_diag) # Missing values = receiver lost! Use modelled data for those dates! 
   data.table::setDT(input)
   input <- input[station_detected != "None"]
   stations <- unique(input$station_detected)
 
   station_worker <- function(stat, input, max_dist, min_slope, max_slope) {
     df_stat <- input[station_detected == stat]
-    dates <- seq(min(df_stat$date), max(df_stat$date), 1)
+    dates <- seq(min(input$date), max(df_stat$date), 1)
     period <- cumsum(c(1, diff(dates) > 1)) # keeps track of consecutive periods
     
     # GLOBAL MODEL
@@ -160,7 +159,6 @@ get_daily_ranges <- function(input,
     )
   }
 
-
   # SERIAL / PARALLEL EXECUTION
   if (!parallel) {
     message("Calculating daily ranges")
@@ -189,17 +187,18 @@ get_daily_ranges <- function(input,
     dplyr::left_join(
       df_diag %>% dplyr::select(station_name, date, noise, temp),
       by = c("station_name", "date")
-    ) 
+    )
+  
+
     # Apply model correction: for only dates with diagnostic data and efficiency
-    wf_fit <- gapFinder::ML_correction
+    wf_fit <- gapFinder::ML_correction # UPDATE FILE IN PACKAGE!
     df_ranges <- df_ranges %>%
       dplyr::mutate(.row = dplyr::row_number())
     df_ranges_pred <- df_ranges %>%
-      dplyr::mutate(eff = daily_efficiency) %>%
-      dplyr::select(.row, ed50, eff, noise, temp) %>%
+      dplyr::select(.row, ed50, daily_efficiency, noise, temp) %>%
       tidyr::drop_na()
     df_ranges_pred <- df_ranges_pred %>%
-      dplyr::bind_cols(terra::predict(wf_fit, new_data = df_ranges_pred) %>% rename(pred_range_diff = .pred)) %>%
+      dplyr::bind_cols(stats::predict(wf_fit, new_data = df_ranges_pred) %>% rename(pred_range_diff = .pred)) %>%
       dplyr::mutate(cor_ed50 = ed50 - pred_range_diff)    
     df_ranges <- df_ranges %>%
       dplyr::left_join(df_ranges_pred %>% dplyr::select(.row, cor_ed50), by = ".row") %>%
@@ -210,9 +209,8 @@ get_daily_ranges <- function(input,
       df_ranges$cor_flag[which(is.na(df_ranges$noise))] <- 2
       df_ranges$cor_flag <- as.factor(df_ranges$cor_flag)
     df_ranges$cor_ed50[is.na(df_ranges$cor_ed50)] <- df_ranges$ed50[is.na(df_ranges$cor_ed50)] # Use modelled values when receiver data not available!
-    df_ranges <- df_ranges %>%
-          dplyr::select(-c(noise, temp))
-
+    df_ranges$cor_ed50[which(df_ranges$cor_ed50 < 0)] <- df_ranges$ed50[which(df_ranges$cor_ed50 < 0)] # Correct negative values to modelled values
+    
   # Combine output
   output <- list(
     global = data.table::rbindlist(lapply(out, `[[`, "global")),
@@ -242,6 +240,29 @@ get_daily_ranges <- function(input,
     output$ranges$range_flag <- 1 # Modelled Range
     output$ranges$range_flag[index] <- 2 # Min estimated range
     output$ranges$range_flag <- as.factor(output$ranges$range_flag)
+
+    # ML fix the minimum ranges were diagnostic data is present
+    df_ranges <- output$ranges
+    df_ranges <- df_ranges %>%
+        dplyr::mutate(.row = dplyr::row_number())
+      df_ranges_pred <- df_ranges %>%
+        dplyr::select(.row, ed50, daily_efficiency, noise, temp) %>%
+        tidyr::drop_na()
+      df_ranges_pred <- df_ranges_pred %>%
+        dplyr::bind_cols(stats::predict(wf_fit, new_data = df_ranges_pred) %>% rename(pred_range_diff = .pred)) %>%
+        dplyr::mutate(cor_ed50_new = ed50 - pred_range_diff)    
+      # Correct negative ranges to be minimum 
+      df_ranges_pred$cor_ed50_new[which(df_ranges_pred$cor_ed50_new < 0)] <- dist_min
+      df_ranges_pred$cor_ed50_new[which(is.na(df_ranges_pred$cor_ed50_new))] <- dist_min
+      # Add new minimum range corrected values    
+      df_ranges <- df_ranges %>%
+        dplyr::left_join(df_ranges_pred %>% dplyr::select(.row, cor_ed50_new), by = ".row") %>%
+        dplyr::select(-c(.row))
+      df_ranges$cor_ed50_new[is.na(df_ranges$cor_ed50_new)] <- dist_min
+      df_ranges$cor_ed50[which(df_ranges$range_flag == 2)] <- df_ranges$cor_ed50_new[which(df_ranges$range_flag == 2)]
+      df_ranges <- df_ranges %>%
+            dplyr::select(-c(noise, temp, cor_ed50_new))
+    output$ranges <- df_ranges  
   } else {
     output$ranges$range_flag <- 1 # Modelled Range
   }
@@ -265,6 +286,6 @@ get_daily_ranges <- function(input,
     dplyr::select(c(date, period, station_name, lon, lat, b0, b1, tot_stations_detected, max_distance_detected,
       daily_efficiency, ed50, range_flag, cor_ed50, cor_flag))
   names(output$ranges)[which(names(output$ranges) %in% c("ed50", "cor_ed50"))] <- c("range", "cor_range")
-
+  
   return(output)
 }

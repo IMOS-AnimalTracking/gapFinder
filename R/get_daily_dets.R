@@ -7,8 +7,8 @@
 #' @param path_meta Path to the receiver deployment metadata csv file.
 #' @param receiver_id Column in the metadata file identifying the receiver name as "model-serial" format (e.g. VR2W-12345)
 #' @param transmitter_id Column in the metadata file identifying the transmitter id format (e.g. A69-1601-12345)
-#' @param deploy_id Column in the metadata file identifying the receiver deployment number, if present. Otherwise, it will be created by default. 
 #' @param station_name Column in the metadata file identifying the station names.
+#' @param deploy_id Column in the metadata file identifying the receiver deployment number, if present. Otherwise, it will be created by default. 
 #' @param deploy_datetime Column in the metadata file identifying the receiver deployment date and time in Y-m-d H:M:S format. 
 #' @param recover_datetime Column in the metadata file identifying the receiver recovery date and time in Y-m-d H:M:S format. 
 #' @param lat Column in the metadata file identifying the deployment latitude. 
@@ -43,9 +43,16 @@ get_daily_dets <- function(input,
   recmeta[,recover_datetime] <- as.POSIXct(recmeta[,recover_datetime],
     format = "%Y-%m-%d %H:%M:%S", tz = tz)
   
-  # Force data.table
-  if (is.null(deploy_id))
+  if (is.null(deploy_id)) { # Add deployment ID if NULL - to be used for plotting
+    recmeta <- recmeta %>%
+      dplyr::group_by(receiver_id, type) %>%
+      dplyr::mutate(deploy_id = dplyr::row_number()) %>%
+      dplyr::ungroup()
+    recmeta <- as.data.frame(recmeta)
     deploy_id <- "deploy_id"
+  }
+  
+  # Force data.table
   det <- data.table::as.data.table(input$det)
   cfg <- data.table::as.data.table(input$cfg_transmitter)
   data.table::setDT(det)
@@ -112,6 +119,15 @@ get_daily_dets <- function(input,
   # Add lost receivers data, if any
   aux_trans <- subset(df_day, detection_type == "Transmission")
   id_missing <- recmeta[which(!recmeta[,transmitter_id] %in% aux_trans$Full_ID),]
+  # Remove receivers withough internal transmiters
+  index <- which(id_missing[,transmitter_id] == "")
+  if (length(index) > 0)
+    id_missing <- id_missing[-index,]
+  # Remove receivers withough recovery dates
+  index <- which(is.na(id_missing[,recover_datetime]))
+  if (length(index) > 0)
+    id_missing <- id_missing[-index,]
+
   if (nrow(id_missing) > 0) {
     id_save <- NULL
     for (i in 1:nrow(id_missing)) {
@@ -122,7 +138,6 @@ get_daily_dets <- function(input,
       # Add missing data
       id_help$date <- dates
       id_help$receiver_name <- id_run[,receiver_id]
-      id_help$deploy_id <- 1
       id_help$station_name <- id_run[,station_name]
       id_help$Full_ID <- id_run[,transmitter_id]
       id_help$lat <- id_run[,lat]
@@ -195,11 +210,10 @@ get_daily_dets <- function(input,
   ]
   # Rename columns and tidy things up
   out[, c("type", "i.type") := NULL]
-  names(out) <- c("date", "receiver_name_detected", 
-    "deploy_id", "station_detected",
+  names(out) <- c("date", "receiver_name_detected", "station_detected",
     "Full_ID", "detection_type", "lat_detected",
     "lon_detected", "number_detections", "receiver_name_transmission",
-    "receiver_deployment_id_transmission", "station_name_transmission",
+    "station_name_transmission",
     "i.detection_type", "lat_transmission", "lon_transmission",
     "transmissions", "efficiency", "distance_detected")
   out[, c("detection_type", "i.detection_type") := NULL]
