@@ -5,6 +5,7 @@
 #'
 #' @param input File exported from match_rec_meta()
 #' @param path_meta Path to the receiver deployment metadata csv file.
+#' @param type Column identifying the metadata deployment type when sentinel transmitters are also deployed in the study area. In these cases, options must include: receiver and transmitter
 #' @param receiver_id Column in the metadata file identifying the receiver name as "model-serial" format (e.g. VR2W-12345)
 #' @param transmitter_id Column in the metadata file identifying the transmitter id format (e.g. A69-1601-12345)
 #' @param station_name Column in the metadata file identifying the station names.
@@ -27,6 +28,7 @@ get_daily_dets <- function(input,
   transmitter_id,
   deploy_id = NULL, 
   station_name, 
+  type = NULL,
   deploy_datetime,
   recover_datetime,
   lat, 
@@ -42,15 +44,37 @@ get_daily_dets <- function(input,
     format = "%Y-%m-%d %H:%M:%S", tz = tz)
   recmeta[,recover_datetime] <- as.POSIXct(recmeta[,recover_datetime],
     format = "%Y-%m-%d %H:%M:%S", tz = tz)
-  
+  # Rename receiver_id column
+  names(recmeta)[which(names(recmeta) == receiver_id)] <- 'receiver_id'
+  if (is.null(type))
+    recmeta$type <- "receiver"
   if (is.null(deploy_id)) { # Add deployment ID if NULL - to be used for plotting
     recmeta <- recmeta %>%
       dplyr::group_by(receiver_id, type) %>%
-      dplyr::mutate(deploy_id = dplyr::row_number()) %>%
+      dplyr::mutate(deploy_id = paste0("deployment_", dplyr::row_number())) %>%
       dplyr::ungroup()
     recmeta <- as.data.frame(recmeta)
     deploy_id <- "deploy_id"
+  } else {
+    names(recmeta)[which(names(recmeta) == deploy_id)] <- "deploy_id"
   }
+
+  # Add receiver deployment id to detections
+  input$det$receiver_id <- paste(input$det$Model, input$det$Serial, sep = "-")
+  setDT(recmeta)
+  setDT(input$det)
+  recmeta[, receiver_deployment_datetime := as.POSIXct(receiver_deployment_datetime, tz = "UTC")]
+  recmeta[, receiver_recovery_datetime   := as.POSIXct(receiver_recovery_datetime, tz = "UTC")]
+  input$det[, Time := as.POSIXct(Time, tz = "UTC")]
+  input$det[
+    recmeta,
+    deploy_id := deploy_id,
+    on = .(
+      receiver_id,
+      Time >= receiver_deployment_datetime,
+      Time <= receiver_recovery_datetime
+    )
+  ]
   
   # Force data.table
   det <- data.table::as.data.table(input$det)
@@ -69,7 +93,12 @@ get_daily_dets <- function(input,
     stop("cfg does not contain column 'Full_ID'. Names are: ",
          paste(names(cfg), collapse = ", "))
   }
-  det_recs <- det[det[["Full_ID"]] %in% recmeta[,transmitter_id], ]
+  
+  det_recs <- subset(
+    det,
+    Full_ID %in% unique(recmeta[[transmitter_id]])
+  )
+  
   # If range transmitters are present
   if ("range_transmitter" %in% names(input)) {
     range <- data.table::as.data.table(input$range_transmitter)
@@ -89,7 +118,7 @@ get_daily_dets <- function(input,
   cfg[, aux := paste(Serial, Full_ID, sep = "_")]
   det[cfg, detection_type := "Transmission", on = "aux"]
   det[is.na(detection_type), detection_type := "Detection"]
-  det[, receiver_name :=
+  det[, receiver_id :=
         paste(stringr::str_split_fixed(Model, "-", 2)[, 1], Serial, sep = "-")]
   det[, date := data.table::as.IDate(Time, tz = "UTC")]
   # Change names to facilitate processing
@@ -107,7 +136,7 @@ get_daily_dets <- function(input,
     ),
     by = c(
       "date",
-      "receiver_name",
+      "receiver_id",
       "type",
       "deploy_id",
       "station_name",
@@ -118,13 +147,13 @@ get_daily_dets <- function(input,
 
   # Add lost receivers data, if any
   aux_trans <- subset(df_day, detection_type == "Transmission")
-  id_missing <- recmeta[which(!recmeta[,transmitter_id] %in% aux_trans$Full_ID),]
+  id_missing <- recmeta[recmeta[[transmitter_id]] %in% unique(aux_trans$Full_ID), ]
   # Remove receivers withough internal transmiters
-  index <- which(id_missing[,transmitter_id] == "")
+  index <- which(id_missing[[transmitter_id]] == "")
   if (length(index) > 0)
     id_missing <- id_missing[-index,]
   # Remove receivers withough recovery dates
-  index <- which(is.na(id_missing[,recover_datetime]))
+  index <- which(is.na(id_missing[[recover_datetime]]))
   if (length(index) > 0)
     id_missing <- id_missing[-index,]
 
@@ -132,20 +161,21 @@ get_daily_dets <- function(input,
     id_save <- NULL
     for (i in 1:nrow(id_missing)) {
       id_run <- id_missing[i,]
-      dates <- seq(as.Date(id_run[,deploy_datetime], tz = tz), 
-        as.Date(id_run[,recover_datetime], tz = tz), 1)
+      dates <- seq(as.Date(id_run[[deploy_datetime]], tz = tz), 
+        as.Date(id_run[[recover_datetime]], tz = tz), 1)
       id_help <- df_day[rep(1, length(dates)),]
       # Add missing data
       id_help$date <- dates
-      id_help$receiver_name <- id_run[,receiver_id]
-      id_help$station_name <- id_run[,station_name]
-      id_help$Full_ID <- id_run[,transmitter_id]
-      id_help$lat <- id_run[,lat]
-      id_help$lon <- id_run[,lon]
+      id_help$receiver_id <- id_run[["receiver_id"]]
+      id_help$station_name <- id_run[[station_name]]
+      id_help$Full_ID <- id_run[[transmitter_id]]
+      id_help$lat <- id_run[[lat]]
+      id_help$lon <- id_run[[lon]]
       id_help$detection_type <- "Transmission"
       id_help$detections <- 144 # Max number of daily transmissions
       id_save <- rbind(id_save, id_help)
     }
+    id_save <- subset(id_save, select = names(df_day))
     df_day <- rbind(df_day, id_save) 
   }
 
@@ -165,7 +195,7 @@ get_daily_dets <- function(input,
     final_trans$detection_type <- "Transmission"
     # Match metadata
     final_trans$Full_ID <- trans_day$receiver_id
-    final_trans$receiver_name <- trans_day$station_name
+    final_trans$receiver_id <- trans_day$station_name
     final_trans$date <- trans_day$date
     final_trans$deploy_id <- trans_day$deploy_id
     final_trans$lat <- trans_day$deploy_lat
@@ -210,10 +240,10 @@ get_daily_dets <- function(input,
   ]
   # Rename columns and tidy things up
   out[, c("type", "i.type") := NULL]
-  names(out) <- c("date", "receiver_name_detected", "station_detected",
+  names(out) <- c("date", "receiver_name_detected", "detection_deploy_id", "station_detected",
     "Full_ID", "detection_type", "lat_detected",
-    "lon_detected", "number_detections", "receiver_name_transmission",
-    "station_name_transmission",
+    "lon_detected", "number_detections",
+    "station_name_transmission", "transmission_deploy_id", "station_name",
     "i.detection_type", "lat_transmission", "lon_transmission",
     "transmissions", "efficiency", "distance_detected")
   out[, c("detection_type", "i.detection_type") := NULL]

@@ -189,7 +189,6 @@ get_daily_ranges <- function(input,
       by = c("station_name", "date")
     )
   
-
     # Apply model correction: for only dates with diagnostic data and efficiency
     wf_fit <- gapFinder::ML_correction # UPDATE FILE IN PACKAGE!
     df_ranges <- df_ranges %>%
@@ -197,8 +196,11 @@ get_daily_ranges <- function(input,
     df_ranges_pred <- df_ranges %>%
       dplyr::select(.row, ed50, daily_efficiency, noise, temp) %>%
       tidyr::drop_na()
+    fit <- workflows::extract_fit_parsnip(wf_fit)
     df_ranges_pred <- df_ranges_pred %>%
-      dplyr::bind_cols(stats::predict(wf_fit, new_data = df_ranges_pred) %>% rename(pred_range_diff = .pred)) %>%
+      dplyr::bind_cols(suppressWarnings(stats::predict(fit, new_data = df_ranges_pred)))
+    df_ranges_pred <- rename(df_ranges_pred, pred_range_diff = .pred)
+    df_ranges_pred <- df_ranges_pred %>%
       dplyr::mutate(cor_ed50 = ed50 - pred_range_diff)    
     df_ranges <- df_ranges %>%
       dplyr::left_join(df_ranges_pred %>% dplyr::select(.row, cor_ed50), by = ".row") %>%

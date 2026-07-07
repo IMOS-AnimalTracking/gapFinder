@@ -2,6 +2,8 @@
 utils::globalVariables(c("station_name",
   "stat",
   "p",
+  "receiver_deployment_datetime",
+  "receiver_recovery_datetime",
   "ed50",
   "station_name_transmission",
   "lon",

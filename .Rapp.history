@@ -1,3 +1,10 @@
+sp::coordinates(aux.UTM) <- ~Longitude+Latitude
+sp::proj4string(aux.UTM) <- sp::CRS('+init=epsg:4326')
+aux.UTM <- aux.spatial$stations
+sp::coordinates(aux.UTM) <- ~Longitude+Latitude
+sp::proj4string(aux.UTM) <- sp::CRS('+init=epsg:4326')
+aux.UTM
+xy_utm <- sp::spTransform(aux.UTM, sp::CRS('+init=epsg:32718'))
 xy_utm
 xy_utm <- as.data.frame(xy_utm)
 xy_utm
@@ -1384,19 +1391,6 @@ devtools::install()
 devtools::check()
 devtools::install()
 setwd("..")
-library(devtools)
-check()
-library(workflows)
-?workflows::predict
-?mgcv::predict
-?parsnip::predict
-?parsnips::predict
-library(parsnips)
-library(parsnip)
-?predict
-check()
-check()
-check()
-check()
-check()
-install()
+devtools::check()
+devtools::check()
+devtools::install()

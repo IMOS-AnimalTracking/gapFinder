@@ -11,6 +11,7 @@ get_daily_dets(
   transmitter_id,
   deploy_id = NULL,
   station_name,
+  type = NULL,
   deploy_datetime,
   recover_datetime,
   lat,
@@ -30,6 +31,8 @@ get_daily_dets(
 \item{deploy_id}{Column in the metadata file identifying the receiver deployment number, if present. Otherwise, it will be created by default.}
 
 \item{station_name}{Column in the metadata file identifying the station names.}
+
+\item{type}{Column identifying the metadata deployment type when sentinel transmitters are also deployed in the study area. In these cases, options must include: receiver and transmitter}
 
 \item{deploy_datetime}{Column in the metadata file identifying the receiver deployment date and time in Y-m-d H:M:S format.}
 
