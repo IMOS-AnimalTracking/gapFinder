@@ -6,6 +6,8 @@
 \usage{
 get_daily_dets(
   input,
+  delay = 660,
+  circadian = FALSE,
   receiver_id,
   path_meta,
   transmitter_id,
@@ -16,38 +18,50 @@ get_daily_dets(
   recover_datetime,
   lat,
   lon,
-  tz
+  tz = "UTC"
 )
 }
 \arguments{
-\item{input}{File exported from match_rec_meta()}
+\item{input}{File exported from match_rec_meta().}
 
-\item{receiver_id}{Column in the metadata file identifying the receiver name as "model-serial" format (e.g. VR2W-12345)}
+\item{delay}{Sentinel transmitter delay time (in seconds).}
 
-\item{path_meta}{Path to the receiver deployment metadata csv file.}
+\item{circadian}{Should detection efficiencies by calculated separated for day/night? Default is FALSE.}
 
-\item{transmitter_id}{Column in the metadata file identifying the transmitter id format (e.g. A69-1601-12345)}
+\item{receiver_id}{Column in the metadata identifying the receiver name in
+"model-serial" format (e.g. VR2W-12345).}
 
-\item{deploy_id}{Column in the metadata file identifying the receiver deployment number, if present. Otherwise, it will be created by default.}
+\item{path_meta}{Path to the receiver deployment metadata CSV file.}
 
-\item{station_name}{Column in the metadata file identifying the station names.}
+\item{transmitter_id}{Column in the metadata identifying the transmitter ID.}
 
-\item{type}{Column identifying the metadata deployment type when sentinel transmitters are also deployed in the study area. In these cases, options must include: receiver and transmitter}
+\item{deploy_id}{Column in the metadata identifying the receiver deployment
+number. If NULL, a deployment ID is created.}
 
-\item{deploy_datetime}{Column in the metadata file identifying the receiver deployment date and time in Y-m-d H:M:S format.}
+\item{station_name}{Column in the metadata identifying station names.}
 
-\item{recover_datetime}{Column in the metadata file identifying the receiver recovery date and time in Y-m-d H:M:S format.}
+\item{type}{Column identifying the metadata deployment type. Options should
+include "receiver" and "transmitter" when sentinel transmitters are
+deployed in the study area.}
 
-\item{lat}{Column in the metadata file identifying the deployment latitude.}
+\item{deploy_datetime}{Column in the metadata identifying receiver
+deployment date/time.}
 
-\item{lon}{Column in the metadata file identifying the deployment longitude.}
+\item{recover_datetime}{Column in the metadata identifying receiver
+recovery date/time.}
 
-\item{tz}{The corresponding timezone of the timestamps. Default is UTC.}
+\item{lat}{Column in the metadata identifying deployment latitude.}
+
+\item{lon}{Column in the metadata identifying deployment longitude.}
+
+\item{tz}{Timezone corresponding to the timestamps. Default is UTC.}
 }
 \value{
-Data frame containing the summary transmissions/detections of sentinel transmitters and acoustic receivers.
+Data frame containing daily summary information for sentinel transmitters
+and acoustic receivers.
 }
 \description{
-This function will extract daily information on the number of transmissions, and their respective detections, 
-from all sentinel transmitters available within all receivers deployed.
+This function extracts daily information on the number of transmissions
+and their respective detections from all internal and sentinel transmitters
+available within deployed receivers.
 }

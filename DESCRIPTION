@@ -30,7 +30,9 @@ Imports:
     minpack.lm,
     sf,
     stats,
+    suncalc,
     foreach,
+    lubridate,
     doParallel,
     parallel,
     workflows

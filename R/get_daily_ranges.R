@@ -38,9 +38,18 @@ get_daily_ranges <- function(input,
   input <- input[station_detected != "None"]
   stations <- unique(input$station_detected)
 
+  # Set circadian helper
+  if ("circadian" %in% names(input)) {
+      circadian <- TRUE
+    } else {
+      circadian <- FALSE
+    }
+
   station_worker <- function(stat, input, max_dist, min_slope, max_slope) {
     df_stat <- input[station_detected == stat]
-    dates <- seq(min(input$date), max(df_stat$date), 1)
+    
+    dates <- seq(min(df_stat$date), max(df_stat$date), 1)
+    
     period <- cumsum(c(1, diff(dates) > 1)) # keeps track of consecutive periods
     
     # GLOBAL MODEL
@@ -75,76 +84,159 @@ get_daily_ranges <- function(input,
     b1_global <- stats::coef(global_fit)["b1"]
 
     # DAILY MODELS
-    ranges_day <- vector("list", length(dates))
-    curves_day <- vector("list", length(dates))
+    if (circadian) {
+      ranges_day <- vector("list", length(dates) * 2)
+      curves_day <- vector("list", length(dates) * 2)
+    } else {
+      ranges_day <- vector("list", length(dates))
+      curves_day <- vector("list", length(dates))
+    }
+    
+    # Run models
+    if (circadian) { # Day/Night models
+      aux_dates <- sort(rep(dates, 2))
+      circ_run <- rep(c("day", "night"), length(dates))
 
-    for (j in seq_along(dates)) {
-      df_day <- df_stat[date == dates[j]]
-      
-      # Prepare daily fit data with anchors
-      fit_df <- unique(rbind(
-        df_day[, .(x = distance_detected, p = efficiency)],
-        data.table(x = c(50, max_dist), p = c(0.99, 0.001))
-      ))
-      fit_df[p >= 1, p := 0.9999]
-      fit_df[p <= 0, p := 1e-6]
+      for (j in seq_along(aux_dates)) {
+          df_day <- df_stat[date == aux_dates[j] & circadian == circ_run[j]]
 
-      # Robust starting values
-      b1_start_day <- max(min(b1_global, max_slope), min_slope)
-      b0_start_day <- stats::qlogis(mean(fit_df$p)) - b1_start_day * mean(fit_df$x)
+            # Prepare daily fit data with anchors
+            fit_df <- unique(rbind(
+              df_day[, .(x = distance_detected, p = efficiency)],
+              data.table(x = c(50, max_dist), p = c(0.99, 0.001))
+            ))
+            fit_df[p >= 1, p := 0.9999]
+            fit_df[p <= 0, p := 1e-6]
 
-      # Fit daily model
-      daily_fit <- tryCatch(
-        minpack.lm::nlsLM(
-          p ~ 1 / (1 + exp(-(b0 + b1 * x))),
-          data = fit_df,
-          start = list(b0 = b0_start_day, b1 = b1_start_day),
-          lower = c(-Inf, min_slope),
-          upper = c(Inf, max_slope),
-          control = minpack.lm::nls.lm.control(maxiter = 1000)
-        ),
-        error = function(e) NULL
-      )
+            # Robust starting values
+            b1_start_day <- max(min(b1_global, max_slope), min_slope)
+            b0_start_day <- stats::qlogis(mean(fit_df$p)) - b1_start_day * mean(fit_df$x)
 
-      if (!is.null(daily_fit)) {
-        b0_day <- stats::coef(daily_fit)["b0"]
-        b1_day <- stats::coef(daily_fit)["b1"]
-      } else {
-        # fallback to global coefficients if daily fit fails
-        b0_day <- b0_global
-        b1_day <- b1_global
-      }
+            # Fit daily model
+            daily_fit <- tryCatch(
+              minpack.lm::nlsLM(
+                p ~ 1 / (1 + exp(-(b0 + b1 * x))),
+                data = fit_df,
+                start = list(b0 = b0_start_day, b1 = b1_start_day),
+                lower = c(-Inf, min_slope),
+                upper = c(Inf, max_slope),
+                control = minpack.lm::nls.lm.control(maxiter = 1000)
+              ),
+              error = function(e) NULL
+            )
 
-      ed50_day <- -b0_day / b1_day
+            if (!is.null(daily_fit)) {
+              b0_day <- stats::coef(daily_fit)["b0"]
+              b1_day <- stats::coef(daily_fit)["b1"]
+            } else {
+              # fallback to global coefficients if daily fit fails
+              b0_day <- b0_global
+              b1_day <- b1_global
+            }
 
-      # Stations and distances detected
-      aux_det <- subset(df_day, station_name_transmission != station_detected)
-      n_stats <- length(unique(aux_det$station_name_transmission))
-      max_dist_det <- max(aux_det$distance_detected, na.rm = TRUE)
-      mean_eff <- mean(aux_det$efficiency, na.rm = TRUE)
+            ed50_day <- -b0_day / b1_day
 
-      # Save data
-      ranges_day[[j]] <- data.table(
-        date = dates[j],
-        station_name = stat,
-        lon = df_day$lon_detected[1],
-        lat = df_day$lat_detected[1],
-        b0 = b0_day,
-        b1 = b1_day,
-        ed50 = ed50_day,
-        tot_stations_detected = n_stats,
-        max_distance_detected = max_dist_det,
-        daily_efficiency = mean_eff,
-        period = period[j]
-      )
+            # Stations and distances detected
+            aux_det <- subset(df_day, station_transmission != station_detected)
+            n_stats <- length(unique(aux_det$station_transmission))
+            max_dist_det <- max(aux_det$distance_detected, na.rm = TRUE)
+            mean_eff <- mean(aux_det$efficiency, na.rm = TRUE)
 
-      x_grid <- seq(0, max_dist, length.out = 50)
-      curves_day[[j]] <- data.table(
-        date = dates[j],
-        station_name = stat,
-        x = x_grid,
-        p = stats::plogis(b0_day + b1_day * x_grid)
-      )
+            # Save data
+            ranges_day[[j]] <- data.table(
+              date = aux_dates[j],
+              circadian = circ_run[j],
+              station_name = stat,
+              lon = df_day$lon_detected[1],
+              lat = df_day$lat_detected[1],
+              b0 = b0_day,
+              b1 = b1_day,
+              ed50 = ed50_day,
+              tot_stations_detected = n_stats,
+              max_distance_detected = max_dist_det,
+              daily_efficiency = mean_eff,
+              period = period[j]
+            )
+
+            x_grid <- seq(0, max_dist, length.out = 50)
+            curves_day[[j]] <- data.table(
+              date = aux_dates[j],
+              circadian = circ_run[j],
+              station_name = stat,
+              x = x_grid,
+              p = stats::plogis(b0_day + b1_day * x_grid)
+            )   
+        }
+
+    } else { # Daily models
+        for (j in seq_along(dates)) {
+          df_day <- df_stat[date == dates[j]]
+
+            # Prepare daily fit data with anchors
+            fit_df <- unique(rbind(
+              df_day[, .(x = distance_detected, p = efficiency)],
+              data.table(x = c(50, max_dist), p = c(0.99, 0.001))
+            ))
+            fit_df[p >= 1, p := 0.9999]
+            fit_df[p <= 0, p := 1e-6]
+
+            # Robust starting values
+            b1_start_day <- max(min(b1_global, max_slope), min_slope)
+            b0_start_day <- stats::qlogis(mean(fit_df$p)) - b1_start_day * mean(fit_df$x)
+
+            # Fit daily model
+            daily_fit <- tryCatch(
+              minpack.lm::nlsLM(
+                p ~ 1 / (1 + exp(-(b0 + b1 * x))),
+                data = fit_df,
+                start = list(b0 = b0_start_day, b1 = b1_start_day),
+                lower = c(-Inf, min_slope),
+                upper = c(Inf, max_slope),
+                control = minpack.lm::nls.lm.control(maxiter = 1000)
+              ),
+              error = function(e) NULL
+            )
+
+            if (!is.null(daily_fit)) {
+              b0_day <- stats::coef(daily_fit)["b0"]
+              b1_day <- stats::coef(daily_fit)["b1"]
+            } else {
+              # fallback to global coefficients if daily fit fails
+              b0_day <- b0_global
+              b1_day <- b1_global
+            }
+
+            ed50_day <- -b0_day / b1_day
+
+            # Stations and distances detected
+            aux_det <- subset(df_day, station_transmission != station_detected)
+            n_stats <- length(unique(aux_det$station_transmission))
+            max_dist_det <- max(aux_det$distance_detected, na.rm = TRUE)
+            mean_eff <- mean(aux_det$efficiency, na.rm = TRUE)
+
+            # Save data
+            ranges_day[[j]] <- data.table(
+              date = dates[j],
+              station_name = stat,
+              lon = df_day$lon_detected[1],
+              lat = df_day$lat_detected[1],
+              b0 = b0_day,
+              b1 = b1_day,
+              ed50 = ed50_day,
+              tot_stations_detected = n_stats,
+              max_distance_detected = max_dist_det,
+              daily_efficiency = mean_eff,
+              period = period[j]
+            )
+
+            x_grid <- seq(0, max_dist, length.out = 50)
+            curves_day[[j]] <- data.table(
+              date = dates[j],
+              station_name = stat,
+              x = x_grid,
+              p = stats::plogis(b0_day + b1_day * x_grid)
+            )   
+        }
     }
 
     list(
@@ -284,9 +376,15 @@ get_daily_ranges <- function(input,
   }
 
   # Reorganize output
-  output$ranges <- output$ranges %>%
-    dplyr::select(c(date, period, station_name, lon, lat, b0, b1, tot_stations_detected, max_distance_detected,
+  if (circadian) {
+    output$ranges <- output$ranges %>%
+    dplyr::select(c(date, circadian, period, station_name, lon, lat, b0, b1, tot_stations_detected, max_distance_detected,
       daily_efficiency, ed50, range_flag, cor_ed50, cor_flag))
+  } else {
+    output$ranges <- output$ranges %>%
+      dplyr::select(c(date, period, station_name, lon, lat, b0, b1, tot_stations_detected, max_distance_detected,
+        daily_efficiency, ed50, range_flag, cor_ed50, cor_flag))
+  }  
   names(output$ranges)[which(names(output$ranges) %in% c("ed50", "cor_ed50"))] <- c("range", "cor_range")
   
   return(output)
