@@ -27,36 +27,81 @@ plot_gaps <- function(ranges,
     stop("station_order stations not present in the data. Please check ranges file.")
   ranges$station_name <- factor(ranges$station_name, levels = station_order)
   
+  # Circadian:
+  if ("circadian" %in% names(ranges)) {
+    circ <- TRUE
+  } else {
+    circ <- FALSE
+  }
+
   # Get all station points
   date <- as.Date(date, tz = "UTC")
   ranges <- as.data.frame(ranges)
-  df_locs <- ranges %>%
-    dplyr::group_by(station_name) %>%
-    dplyr::summarise(x = lon[1],
-      y = lat[1])
-  ranges <- ranges[which(ranges$date == date),]
-  df_locs$range_flag <- ranges$range_flag[match(df_locs$station_name, ranges$station_name)]
-  df_locs$cor_flag <- ranges$cor_flag[match(df_locs$station_name, ranges$station_name)]
-  ranges <- ranges[which(ranges$date == date),]
+  if (circ) {
+    df_locs <- ranges %>%
+      dplyr::group_by(station_name, circadian) %>%
+      dplyr::summarise(x = lon[1],
+        y = lat[1],
+        min_range = min(cor_range))
+    ranges <- ranges[which(ranges$date == date),]  
+    df_locs <- df_locs %>%
+      dplyr::left_join(
+        ranges %>%
+          dplyr::select(station_name, circadian, range_flag, cor_flag, cor_range, range),
+        by = c("station_name", "circadian")
+      )
+    # Missing station: non-corrected minimum range
+    index <- which(is.na(df_locs$cor_range))
+    if (length(index) > 0) {
+      df_locs$cor_range[index] <- df_locs$min_range[index]
+      df_locs$range_flag[index] <- 2
+      df_locs$cor_flag[index] <- 2
+    }
+    # Extract gap data
+    df_gaps <- gaps[which(gaps$date == date),]
+    df_gaps$station <- factor(df_gaps$station,
+      levels = station_order)
+  } else {
+    df_locs <- ranges %>%
+      dplyr::group_by(station_name) %>%
+      dplyr::summarise(x = lon[1],
+        y = lat[1],
+        min_range = min(cor_range))
+    ranges <- ranges[which(ranges$date == date),]  
+    df_locs$range_flag <- ranges$range_flag[match(df_locs$station_name, ranges$station_name)]
+    df_locs$cor_flag <- ranges$cor_flag[match(df_locs$station_name, ranges$station_name)]
+    df_locs$cor_range <- ranges$cor_range[match(df_locs$station_name, ranges$station_name)]
+    df_locs$range <- ranges$range[match(df_locs$station_name, ranges$station_name)]
+    # Missing station: non-corrected minimum range
+    index <- which(is.na(df_locs$cor_range))
+    if (length(index) > 0) {
+      df_locs$cor_range[index] <- df_locs$min_range[index]
+      df_locs$range_flag[index] <- 2
+      df_locs$cor_flag[index] <- 2
+    }
+    # Extract gap data
+    df_gaps <- gaps[which(gaps$date == date),]
+    df_gaps$station <- factor(df_gaps$station,
+      levels = station_order)
+  }
+
+ 
+
+  # # Extract range data
+  # date.aux <- date
+  # aux.data <- subset(ranges, date == date.aux)
+  # aux.data$station_name <- factor(aux.data$station_name,
+  #   levels = station_order)
+  # df_locs$range <- aux.data$cor_range[match(df_locs$station_name, aux.data$station_name)]
+  # index <- which(is.na(df_locs$range))
+  # if (length(index) > 0)
+  #   df_locs$range[index] <- 0
   
-  # Extract range data
-  date.aux <- date
-  aux.data <- subset(ranges, date == date.aux)
-  aux.data$station_name <- factor(aux.data$station_name,
-    levels = station_order)
-  df_locs$range <- aux.data$range[match(df_locs$station_name, aux.data$station_name)]
-  index <- which(is.na(df_locs$range))
-  if (length(index) > 0)
-    df_locs$range[index] <- 0
-  # Extract gap data
-  df_gaps <- gaps[which(gaps$date == date),]
-  df_gaps$station <- factor(df_gaps$station,
-    levels = station_order)
   # Convert to points
   pts <- sf::st_as_sf(df_locs, coords = c("x", "y"), crs = 4326)
   pts_m <- sf::st_transform(pts, 3857)
   # Create buffers in meters
-  buffs <- sf::st_buffer(pts_m, dist = df_locs$range)
+  buffs <- sf::st_buffer(pts_m, dist = df_locs$cor_range)
   # Receiver location boundaries
   xlim <- c(min(df_locs$x) - 0.009, max(df_locs$x) + 0.009)
   ylim <- c(min(df_locs$y) - 0.009, max(df_locs$y) + 0.009)
@@ -149,6 +194,10 @@ plot_gaps <- function(ranges,
       fill = ggplot2::guide_legend(order = 1),
       linetype = ggplot2::guide_legend(order = 2)
     ) 
+    if (circ) {
+      plot1 <- plot1 + 
+        ggplot2::facet_wrap(~circadian, nrow = 2)
+    }
   plot2 <- ggplot2::ggplot() + ggplot2::theme_bw() + 
     ggplot2::coord_cartesian(xlim = c(max_before, max_after)) +
     ggplot2::geom_pointrange(data = df_gaps, position = ggplot2::position_dodge(width = 0.1),
@@ -161,6 +210,11 @@ plot_gaps <- function(ranges,
     ggplot2::guides(colour = ggplot2::guide_legend(order = 1),
       linetype = ggplot2::guide_legend(order = 2)) + 
     ggplot2::labs(y = "Station name", x = "Gap size (m)") 
+    if (circ) {
+      plot2 <- plot2 + 
+        ggplot2::facet_wrap(~circadian, nrow = 2)
+    }
+
   # Fix axes
   if (max_before == 0 & max_after == 0) {
     plot2 <- plot2 + 

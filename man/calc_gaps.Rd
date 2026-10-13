@@ -9,16 +9,16 @@ calc_gaps(type, input, j, date, station_order)
 \arguments{
 \item{type}{Position of station in the sequence: "first", "middle", "last"}
 
-\item{input}{from get_daily_ranges}
+\item{input}{Daily ranges for ONE date (and ONE circadian group, if used)}
 
 \item{j}{Station position}
 
 \item{date}{Date of interest}
 
-\item{station_order}{The names of the stations with expected overlapping ML corrected ranges, from first to last.}
+\item{station_order}{The names of the stations with expected overlapping ranges, from first to last.}
 }
 \value{
-Matrix of station spatial overlap
+Data frame of station spatial overlap and gaps
 }
 \description{
 Function used to calculate gaps between sequence of stations with expected overlapping range

@@ -44,19 +44,47 @@ gaps_diag <- function(input,
     input <- input[input$date <= as.Date(stop_time, format = "%Y-%m-%d", tz = tz)]
   }
 
-  gaps_filt <- input %>%
-      dplyr::filter(range_flag == 1 & cor_flag == 1) %>%
-      dplyr::group_by(station_name) %>%
+  # circadian? 
+  if("circadian" %in% names(input)) {
+    circ <- "TRUE" 
+  } else {
+    circ <- "FALSE"
+  }
+
+  dates <- length(unique(input$date)) # Total 
+  if (circ) {
+    gaps_filt <- input %>%
+      # dplyr::filter(range_flag == 1 & cor_flag == 1) %>%
+      dplyr::group_by(station_name, circadian) %>%
       dplyr::summarise(
-          days_before = round((length(which(gap_before > 0)) / length(unique(date)) * 100), 1),
-          days_after = round((length(which(gap_after > 0)) / length(unique(date)) * 100), 1),
+          days_before = round(((length(which(gap_before > 0)) / dates) * 100), 2),
+          days_after = round(((length(which(gap_after > 0)) / dates) * 100), 2),
           mean_before = mean(gap_before, na.rm = TRUE), 
           sd_before = stats::sd(gap_before, na.rm = TRUE),
           mean_after = mean(gap_after, na.rm = TRUE),
           sd_after = stats::sd(gap_after, na.rm = TRUE))
+
+  } else {
+    gaps_filt <- input %>%
+      # dplyr::filter(range_flag == 1 & cor_flag == 1) %>%
+      dplyr::group_by(station_name) %>%
+      dplyr::summarise(
+          days_before = round(((length(which(gap_before > 0)) / dates) * 100), 2),
+          days_after = round(((length(which(gap_after > 0)) / dates) * 100), 2),
+          mean_before = mean(gap_before, na.rm = TRUE), 
+          sd_before = stats::sd(gap_before, na.rm = TRUE),
+          mean_after = mean(gap_after, na.rm = TRUE),
+          sd_after = stats::sd(gap_after, na.rm = TRUE))
+  }
+  
   # Find maximum gap values to be used for axis
   max_neg <- (ceiling(round(max(gaps_filt$mean_before + gaps_filt$sd_before, na.rm = TRUE), 0) / 50) * 50) * -1
   max_pos <- ceiling(round(max(gaps_filt$mean_after + gaps_filt$sd_after, na.rm = TRUE), 0) / 50) * 50
+  if (max_neg > -50)
+    max_neg <- -70
+  if (max_pos < 50)
+    max_pos <- 70
+
   # Reverse negative values  
   gaps_filt$mean_before <- gaps_filt$mean_before *-1
   
@@ -78,14 +106,14 @@ gaps_diag <- function(input,
     ) +
     ggplot2::geom_text(
       data = gaps_filt,
-      ggplot2::aes(y = (mean_before - sd_before) - 20,
+      ggplot2::aes(y = (mean_before - sd_before) - 10,
                   x = station_name, label = days_before),
       colour = paletteer::paletteer_d("ggsci::nrc_npg")[1],
       na.rm = TRUE
     ) +
     ggplot2::geom_text(
       data = gaps_filt,
-      ggplot2::aes(y = (mean_after + sd_after) + 20,
+      ggplot2::aes(y = (mean_after + sd_after) + 10,
                   x = station_name, label = days_after),
       colour = paletteer::paletteer_d("ggsci::nrc_npg")[6],
       na.rm = TRUE
@@ -94,9 +122,17 @@ gaps_diag <- function(input,
     ggplot2::scale_y_continuous(breaks = seq(max_neg, max_pos, 50),
          labels = c(seq(max_neg * -1, 50, -50), seq(0, max_pos, 50)),
          sec.axis = ggplot2::sec_axis(~ . *1, name = "Position", 
-         breaks = c(-100, 100), labels = c("Before", "After"))) +    
+         breaks = c(-50, 50), labels = c("Before", "After"))) +    
     ggplot2::labs(y = "Gap size (m)", x = "Station Name") +
     ggplot2::coord_flip()
+
+    if (circ) 
+      plot_gaps <- plot_gaps +
+        ggplot2::facet_wrap(~circadian)
+
+  # Transform negative values back to positive for export
+  gaps_filt$mean_before <- gaps_filt$mean_before * -1
+
 
   return(list(gaps = gaps_filt, gaps_plot = plot_gaps))
 }
