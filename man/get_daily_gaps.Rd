@@ -2,7 +2,7 @@
 % Please edit documentation in R/get_daily_gaps.R
 \name{get_daily_gaps}
 \alias{get_daily_gaps}
-\title{Calculate daily gaps between stations}
+\title{Calculate potential gaps in the station sequence}
 \usage{
 get_daily_gaps(
   input,
@@ -11,17 +11,9 @@ get_daily_gaps(
   tz = NULL,
   station_order,
   parallel = TRUE,
-  n_cores = parallel::detectCores() - 1
-)
-
-get_daily_gaps(
-  input,
-  start_time = NULL,
-  stop_time = NULL,
-  tz = NULL,
-  station_order,
-  parallel = TRUE,
-  n_cores = parallel::detectCores() - 1
+  n_cores = parallel::detectCores() - 1,
+  range_type = NULL,
+  cor_type = NULL
 )
 }
 \arguments{
@@ -38,17 +30,15 @@ get_daily_gaps(
 \item{parallel}{Should the daily gaps be calculated in parallel? Default is TRUE.}
 
 \item{n_cores}{How many cores should be used for parallel computing. Default it total available - 1.}
+
+\item{range_type}{Range flag to select (default NULL is both): 1 = Modelled range (default), 2 = Minimum estimated range}
+
+\item{cor_type}{Correction flag to select (default NULL is both): 1 = ML corrected range (default), 2 = Missing diagnostic data}
 }
 \value{
-Data frame of gaps and overlaps per station, date (and circadian group).
-
 Data frame containing the daily gaps and percentage of overlaps for all stations included in the "station_order" argument.
 }
 \description{
-Calculates gaps and overlaps between consecutive stations for each day.
-If the ranges contain a "circadian" column, gaps are calculated separately
-within each circadian group (e.g. day and night).
-
 This function calculates gaps in the station sequence with daily resolution.
 If the ranges contain a "circadian" column, gaps are calculated separately within each circadian group.
 When a station has no corrected range (cor_range) for a given day, its minimum corrected range

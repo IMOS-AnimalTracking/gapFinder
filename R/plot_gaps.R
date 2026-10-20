@@ -39,53 +39,64 @@ plot_gaps <- function(ranges,
   ranges <- as.data.frame(ranges)
   if (circ) {
     df_locs <- ranges %>%
-      dplyr::group_by(station_name, circadian) %>%
+      dplyr::group_by(station_name, range_flag, cor_flag, circadian) %>%
       dplyr::summarise(x = lon[1],
         y = lat[1],
-        min_range = min(cor_range))
-    ranges <- ranges[which(ranges$date == date),]  
-    df_locs <- df_locs %>%
-      dplyr::left_join(
-        ranges %>%
-          dplyr::select(station_name, circadian, range_flag, cor_flag, cor_range, range),
-        by = c("station_name", "circadian")
-      )
-    # Missing station: non-corrected minimum range
-    index <- which(is.na(df_locs$cor_range))
-    if (length(index) > 0) {
-      df_locs$cor_range[index] <- df_locs$min_range[index]
-      df_locs$range_flag[index] <- 2
-      df_locs$cor_flag[index] <- 2
-    }
-    # Extract gap data
-    df_gaps <- gaps[which(gaps$date == date),]
-    df_gaps$station <- factor(df_gaps$station,
-      levels = station_order)
-  } else {
-    df_locs <- ranges %>%
-      dplyr::group_by(station_name) %>%
-      dplyr::summarise(x = lon[1],
-        y = lat[1],
-        min_range = min(cor_range))
-    ranges <- ranges[which(ranges$date == date),]  
-    df_locs$range_flag <- ranges$range_flag[match(df_locs$station_name, ranges$station_name)]
-    df_locs$cor_flag <- ranges$cor_flag[match(df_locs$station_name, ranges$station_name)]
+        min_range = min(cor_range)) %>%
+      dplyr::filter(range_flag %in% c(0, 2) &
+        cor_flag %in% c(0, 2))
+
+     ranges <- ranges[which(ranges$date == date),]  
+
+    df_locs$range_flag2 <- ranges$range_flag[match(df_locs$station_name, ranges$station_name)]
+    df_locs$cor_flag2 <- ranges$cor_flag[match(df_locs$station_name, ranges$station_name)]
     df_locs$cor_range <- ranges$cor_range[match(df_locs$station_name, ranges$station_name)]
     df_locs$range <- ranges$range[match(df_locs$station_name, ranges$station_name)]
     # Missing station: non-corrected minimum range
     index <- which(is.na(df_locs$cor_range))
     if (length(index) > 0) {
       df_locs$cor_range[index] <- df_locs$min_range[index]
-      df_locs$range_flag[index] <- 2
-      df_locs$cor_flag[index] <- 2
+      df_locs$range_flag2[index] <- df_locs$range_flag[index]
+      df_locs$cor_flag2[index] <- df_locs$cor_flag[index]
     }
+    df_locs$range_flag <- df_locs$range_flag2
+    df_locs$cor_flag <- df_locs$cor_flag2
+
+    # Extract gap data
+    df_gaps <- gaps[which(gaps$date == date),]
+    df_gaps$station <- factor(df_gaps$station,
+      levels = station_order)
+  } else {
+    df_locs <- ranges %>%
+      dplyr::group_by(station_name, range_flag, cor_flag) %>%
+      dplyr::summarise(x = lon[1],
+        y = lat[1],
+        min_range = min(cor_range)) %>%
+      dplyr::filter(range_flag %in% c(0, 2) &
+        cor_flag %in% c(0, 2))
+
+    ranges <- ranges[which(ranges$date == date),]  
+
+    df_locs$range_flag2 <- ranges$range_flag[match(df_locs$station_name, ranges$station_name)]
+    df_locs$cor_flag2 <- ranges$cor_flag[match(df_locs$station_name, ranges$station_name)]
+    df_locs$cor_range <- ranges$cor_range[match(df_locs$station_name, ranges$station_name)]
+    df_locs$range <- ranges$range[match(df_locs$station_name, ranges$station_name)]
+    # Missing station: non-corrected minimum range
+    index <- which(is.na(df_locs$cor_range))
+    if (length(index) > 0) {
+      df_locs$cor_range[index] <- df_locs$min_range[index]
+      df_locs$range_flag2[index] <- df_locs$range_flag[index]
+      df_locs$cor_flag2[index] <- df_locs$cor_flag[index]
+    }
+    df_locs$range_flag <- df_locs$range_flag2
+    df_locs$cor_flag <- df_locs$cor_flag2
+
     # Extract gap data
     df_gaps <- gaps[which(gaps$date == date),]
     df_gaps$station <- factor(df_gaps$station,
       levels = station_order)
   }
 
- 
 
   # # Extract range data
   # date.aux <- date
@@ -173,64 +184,175 @@ plot_gaps <- function(ranges,
   df_gaps$gap_after[is.na(df_gaps$gap_after)] <- 0
 
   # Plot
+  # legend_unused: "drop" = hide levels not in the data
+  #                "keep" = show all levels (previous behaviour)
+  #                "label" = show all levels, but mark absent ones "(none)"
+  legend_unused <- "drop"
+
+  flag_levels <- c("0", "1", "2")
+  flag_cols <- stats::setNames(
+    paletteer::paletteer_d("colorBlindness::SteppedSequential5Steps")[c(2, 11, 18)],
+    flag_levels
+  )
+  flag_ltys <- stats::setNames(c("dotted", "solid", "dashed"), flag_levels)
+
+  buffs$range_flag <- factor(buffs$range_flag, levels = flag_levels)
+  buffs$cor_flag   <- factor(buffs$cor_flag,   levels = flag_levels)
+
+  # Build legend label helper
+  make_labels <- function(present) {
+    if (legend_unused == "label") {
+      function(x) ifelse(x %in% present, x, paste0(x, " (none)"))
+    } else {
+      ggplot2::waiver()
+    }
+  }
+
+  drop_flag <- legend_unused == "drop"
+
   plot1 <- ggplot2::ggplot() +
-    ggplot2::geom_sf(data = buffs, ggplot2::aes(fill = range_flag, linetype = cor_flag), 
-      alpha = 0.3, linewidth = 0.5) +
-    ggplot2::scale_fill_manual(values = paletteer::paletteer_d("colorBlindness::SteppedSequential5Steps")[c(11,18)]) +
-    ggplot2::geom_sf(data = pts_m, color = "black", size = 2) +
-    ggplot2::geom_sf_text(data = plot_lab_m, ggplot2::aes(label = station_name), colour = "black",
-      check_overlap = TRUE) +
+    ggplot2::geom_sf(
+      data = buffs,
+      ggplot2::aes(fill = range_flag, linetype = cor_flag),
+      alpha = 0.3, linewidth = 0.5
+    ) +
+    ggplot2::scale_fill_manual(
+      values = flag_cols, drop = drop_flag, name = "Range flag",
+      labels = make_labels(unique(as.character(buffs$range_flag)))
+    ) +
+    ggplot2::scale_linetype_manual(
+      values = flag_ltys, drop = drop_flag, name = "Cor flag",
+      labels = make_labels(unique(as.character(buffs$cor_flag)))
+    ) +
+    ggplot2::geom_sf(data = pts_m, color = "black", size = 0.5) +
+    ggplot2::geom_sf_text(
+      data = plot_lab_m, ggplot2::aes(label = station_name),
+      colour = "black", check_overlap = TRUE
+    ) +
     ggplot2::coord_sf(xlim = plot_lim$X, ylim = plot_lim$Y) +
     ggplot2::theme_minimal() +
     ggspatial::annotation_scale(
-      location = "bl",        # bottom left
-      width_hint = 0.2,       # relative width of scale bar
-      text_cex = 0.8,
-      line_width = 1,
-      height = ggplot2::unit(0.15, "cm"),
-      unit_category = "metric") +
+      location = "bl", width_hint = 0.2, text_cex = 0.8,
+      line_width = 1, height = ggplot2::unit(0.15, "cm"),
+      unit_category = "metric"
+    ) +
     ggplot2::labs(title = paste("Date:", date), x = "", y = "") +
-    ggplot2::guides(
-      fill = ggplot2::guide_legend(order = 1),
-      linetype = ggplot2::guide_legend(order = 2)
-    ) 
-    if (circ) {
-      plot1 <- plot1 + 
-        ggplot2::facet_wrap(~circadian, nrow = 2)
-    }
-  plot2 <- ggplot2::ggplot() + ggplot2::theme_bw() + 
-    ggplot2::coord_cartesian(xlim = c(max_before, max_after)) +
-    ggplot2::geom_pointrange(data = df_gaps, position = ggplot2::position_dodge(width = 0.1),
-      ggplot2::aes(x = 0, xmin = 0 - gap_before, xmax = 0, y = station, colour = range_flag, linetype = cor_flag),
-      size = 0.3, linewidth = 1) +
-    ggplot2::geom_pointrange(data = df_gaps, position = ggplot2::position_dodge(width = 0.1),
-      ggplot2::aes(x = 0, xmin = 0 + gap_after, xmax = 0, y = station, colour = range_flag, linetype = cor_flag),
-      size = 0.3, linewidth = 1) +
-    ggplot2::scale_color_manual(values = paletteer::paletteer_d("colorBlindness::SteppedSequential5Steps")[c(11,18)]) +
-    ggplot2::guides(colour = ggplot2::guide_legend(order = 1),
-      linetype = ggplot2::guide_legend(order = 2)) + 
-    ggplot2::labs(y = "Station name", x = "Gap size (m)") 
-    if (circ) {
-      plot2 <- plot2 + 
-        ggplot2::facet_wrap(~circadian, nrow = 2)
-    }
+    # ggplot2::guides(
+    #   fill = ggplot2::guide_legend(order = 1),
+    #   linetype = ggplot2::guide_legend(
+    #     order = 2,
+    #     override.aes = list(fill = "white", alpha = 1, linewidth = 0.8)
+    #   )
+    # )
+    ggplot2::theme(legend.position = 'none')
 
-  # Fix axes
-  if (max_before == 0 & max_after == 0) {
-    plot2 <- plot2 + 
-    ggplot2::scale_x_continuous(breaks = c(-0.025, 0, 0.025),
-      labels = c("", "0", ""),    
-       sec.axis = ggplot2::sec_axis(~ . *1, name = "Position", 
-          breaks = c(-0.025, 0.025), labels = c("Before", "After"))) 
-  } 
-  if (max_before != 0 & max_after != 0) {
-    plot2 <- plot2 + 
-    ggplot2::scale_x_continuous(breaks = seq(max_before, max_after, 100),
-      labels = c(seq(max_before*-1, 100, -100), seq(0, max_after, 100)),    
-       sec.axis = ggplot2::sec_axis(~ . *1, name = "Position", 
-          breaks = c(-100, 100), labels = c("Before", "After"))) 
-  }  
-  plot_save <- (plot1 | plot2) + patchwork::plot_layout(widths = c(4,3))
+  if (circ) {
+    plot1 <- plot1 + ggplot2::facet_wrap(~circadian, nrow = 2)
+  }
+
+  # ---- Shared setup (define once, above plot1 and plot2) ----
+  legend_unused <- "drop"   # "drop", "keep" or "label"
+  share_legend  <- TRUE     # TRUE = only plot1 shows legends (plot2 uses the same colours/linetypes)
+
+  flag_levels <- c("0", "1", "2")
+  flag_cols <- stats::setNames(
+    paletteer::paletteer_d("colorBlindness::SteppedSequential5Steps")[c(2, 11, 18)],
+    flag_levels
+  )
+  flag_ltys <- stats::setNames(c("dotted", "solid", "dashed"), flag_levels)
+
+  buffs$range_flag    <- factor(buffs$range_flag,    levels = flag_levels)
+  buffs$cor_flag      <- factor(buffs$cor_flag,      levels = flag_levels)
+  df_gaps$range_flag  <- factor(df_gaps$range_flag,  levels = flag_levels)
+  df_gaps$cor_flag    <- factor(df_gaps$cor_flag,    levels = flag_levels)
+
+  drop_flag <- legend_unused == "drop"
+
+  make_labels <- function(present) {
+    if (legend_unused == "label") {
+      function(x) ifelse(x %in% present, x, paste0(x, " (none)"))
+    } else {
+      ggplot2::waiver()
+    }
+  }
+
+  # ---- plot2 ----
+  plot2 <- ggplot2::ggplot() + ggplot2::theme_bw() +
+    ggplot2::coord_cartesian(xlim = c(max_before, max_after)) +
+    ggplot2::geom_pointrange(
+      data = df_gaps, position = ggplot2::position_dodge(width = 0.1),
+      ggplot2::aes(x = 0, xmin = 0 - gap_before, xmax = 0, y = station,
+                   colour = range_flag, linetype = cor_flag),
+      size = 0.3, linewidth = 1
+    ) +
+    ggplot2::geom_pointrange(
+      data = df_gaps, position = ggplot2::position_dodge(width = 0.1),
+      ggplot2::aes(x = 0, xmin = 0 + gap_after, xmax = 0, y = station,
+                   colour = range_flag, linetype = cor_flag),
+      size = 0.3, linewidth = 1
+    ) +
+    ggplot2::scale_colour_manual(
+      values = flag_cols, drop = drop_flag, name = "Range flag",
+      labels = make_labels(unique(as.character(df_gaps$range_flag)))
+    ) +
+    ggplot2::scale_linetype_manual(
+      values = flag_ltys, drop = drop_flag, name = "Cor flag",
+      labels = make_labels(unique(as.character(df_gaps$cor_flag)))
+    ) +
+    # ggplot2::guides(
+    #   colour   = ggplot2::guide_legend(order = 1),
+    #   linetype = ggplot2::guide_legend(order = 2)
+    # ) +
+    ggplot2::guides(
+      colour = ggplot2::guide_legend(
+        order = 1,
+        override.aes = list(linetype = "blank")   # hides the line, keeps the coloured point
+      ),
+      linetype = ggplot2::guide_legend(
+        order = 2,
+        override.aes = list(shape = NA, size = 0, colour = "grey30")  # hides the point, keeps the line
+      )
+    ) +
+    ggplot2::labs(y = "Station name", x = "Gap size (m)")
+
+  # if (share_legend) {
+  #   plot2 <- plot2 + ggplot2::theme(legend.position = "none")
+  # }
+
+  if (circ) {
+    plot2 <- plot2 + ggplot2::facet_wrap(~circadian, nrow = 2)
+  }
+
+  # ---- Fix axes ----
+  if (max_before == 0 && max_after == 0) {
+    plot2 <- plot2 +
+      ggplot2::scale_x_continuous(
+        breaks = c(-0.025, 0, 0.025),
+        labels = c("", "0", ""),
+        sec.axis = ggplot2::sec_axis(~ ., name = "Position",
+          breaks = c(-0.025, 0.025), labels = c("Before", "After"))
+      )
+  } else {
+    plot2 <- plot2 +
+      ggplot2::scale_x_continuous(
+        breaks = seq(max_before, max_after, 100),
+        labels = function(x) abs(x),
+        sec.axis = ggplot2::sec_axis(~ ., name = "Position",
+          breaks = c(-100, 100), labels = c("Before", "After"))
+      )
+  }
+  if (max_after > 500) {
+    plot2 <- suppressMessages(plot2 +
+      ggplot2::scale_x_continuous(
+        breaks = seq(max_before, max_after, 200),
+        labels = function(x) abs(x),
+        sec.axis = ggplot2::sec_axis(~ ., name = "Position",
+          breaks = c(-100, 100), labels = c("Before", "After"))
+      ))
+  }
+
+  plot_save <- (plot1 | plot2) + patchwork::plot_layout(widths = c(4, 3), guides = "collect")
+
   return(plot_save) 
 }
 

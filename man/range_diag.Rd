@@ -10,8 +10,8 @@ range_diag(
   stop_time = NULL,
   tz = NULL,
   station_order,
-  range_type = 1,
-  cor_type = 1
+  range_type = NULL,
+  cor_type = NULL
 )
 }
 \arguments{
@@ -25,9 +25,9 @@ range_diag(
 
 \item{station_order}{The names of the stations with expected overlapping ranges, from first to last.}
 
-\item{range_type}{Range flag to select: 1 = Modelled range (default), 2 = Minimum estimated range}
+\item{range_type}{Range flag to select (default NULL is both): 1 = Modelled range (default), 2 = Minimum estimated range}
 
-\item{cor_type}{Correction flag to select: 1 = ML corrected range (default), 2 = Missing diagnostic data}
+\item{cor_type}{Correction flag to select (default NULL is both): 1 = ML corrected range (default), 2 = Missing diagnostic data}
 }
 \value{
 A dataframe containing the range performance metrics

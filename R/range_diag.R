@@ -7,8 +7,8 @@
 #' @param stop_time Final date and time of interest in Y-m-d format. Default is entire data available.
 #' @param tz When start_time and stop_time are provided, their respective timezone.
 #' @param station_order The names of the stations with expected overlapping ranges, from first to last.
-#' @param range_type Range flag to select: 1 = Modelled range (default), 2 = Minimum estimated range
-#' @param cor_type Correction flag to select: 1 = ML corrected range (default), 2 = Missing diagnostic data 
+#' @param range_type Range flag to select (default NULL is both): 1 = Modelled range (default), 2 = Minimum estimated range
+#' @param cor_type Correction flag to select (default NULL is both): 1 = ML corrected range (default), 2 = Missing diagnostic data 
 #' 
 #' @return A dataframe containing the range performance metrics
 #' 
@@ -19,8 +19,8 @@ range_diag <- function(input,
   stop_time = NULL,
   tz = NULL,
   station_order,
-  range_type = 1, 
-  cor_type = 1) {
+  range_type = NULL, 
+  cor_type = NULL) {
   options(dplyr.summarise.inform = FALSE)
 
   if(!all(station_order %in% unique(input$ranges$station_name)))
@@ -42,12 +42,18 @@ range_diag <- function(input,
   if (!is.null(stop_time)) {
     input <- input[input$date <= as.Date(stop_time, format = "%Y-%m-%d", tz = tz)]
   }
+  if (!is.null(range_type)) {
+    input <- input[which(input$range_flag == range_type),]
+  }
+  if (!is.null(cor_type)) {
+    input <- input[which(input$cor_flag == cor_flag),]
+  }
 
   deploy_time <- as.numeric(difftime(max(input$date), min(input$date), units = "days"))
   options(dplyr.summarise.inform = FALSE)
   # Calculate metrics at station level
   df_sum <- input %>%
-    dplyr::group_by(station_name, range_flag, cor_flag) %>%
+    dplyr::group_by(station_name) %>%
     dplyr::summarise(days_range_prop = round(length(unique(date)) / deploy_time, 2),
       min_transmitters = min(tot_stations_detected),
       max_transmitters = max(tot_stations_detected),
@@ -86,10 +92,12 @@ range_diag <- function(input,
         } else {
           round(max(cor_range, na.rm = TRUE), 2)
         },
-    .groups = "drop") %>%
-    dplyr::filter(range_flag == range_type & 
-      cor_flag == cor_type) %>%
-    dplyr::select(-c(range_flag, cor_flag))
+    .groups = "drop") 
+
+    # Fix values for stations with no data
+    index <- which(df_sum$max_efficiency == 0)
+    if (length(index) > 0) 
+      df_sum$days_range_prop[index] <- 0
       
   return(suppressWarnings(df_sum))
 }

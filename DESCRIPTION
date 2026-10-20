@@ -16,8 +16,8 @@ RoxygenNote: 7.3.2
 Depends: R (>= 4.0)
 Imports:
     magrittr,
-    stringr,
     data.table,
+    stringr,
     geosphere,
     tibble,
     dplyr,

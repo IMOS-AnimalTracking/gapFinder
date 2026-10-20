@@ -7,8 +7,8 @@
 #' @param stop_time Final date and time of interest in Y-m-d format. Default is entire data available.
 #' @param tz When start_time and stop_time are provided, their respective timezone.
 #' @param station_order The names of the stations with expected overlapping ranges, from first to last.
-#' @param range_type Range flag to select: 1 = Modelled range (default), 2 = Minimum estimated range
-#' @param cor_type Correction flag to select: 1 = ML corrected range (default), 2 = Missing diagnostic data 
+#' @param range_type Range flag to select (default NULL is both): 1 = Modelled range (default), 2 = Minimum estimated range
+#' @param cor_type Correction flag to select (default NULL is both): 1 = ML corrected range (default), 2 = Missing diagnostic data 
 #' 
 #' @return A dataframe containing the range performance metrics
 #' 
@@ -19,8 +19,8 @@ gaps_diag <- function(input,
   stop_time = NULL,
   tz = NULL,
   station_order,
-  range_type = 1, 
-  cor_type = 1) {
+  range_type = NULL, 
+  cor_type = NULL) {
   
   options(dplyr.summarise.inform = FALSE)
 
@@ -43,6 +43,13 @@ gaps_diag <- function(input,
   if (!is.null(stop_time)) {
     input <- input[input$date <= as.Date(stop_time, format = "%Y-%m-%d", tz = tz)]
   }
+  if (!is.null(range_type)) {
+    input <- input[which(input$range_flag == range_type),]
+  }
+  if (!is.null(cor_type)) {
+    input <- input[which(input$cor_flag == cor_type),]
+  }
+
 
   # circadian? 
   if("circadian" %in% names(input)) {
@@ -89,40 +96,41 @@ gaps_diag <- function(input,
   gaps_filt$mean_before <- gaps_filt$mean_before *-1
   
   # Plot summary gaps
+  pal <- paletteer::paletteer_d("ggsci::nrc_npg")
+
   plot_gaps <- ggplot2::ggplot() + ggplot2::theme_bw() +
     ggplot2::geom_pointrange(
       data = gaps_filt,
       ggplot2::aes(x = station_name, y = mean_before,
-                  ymin = mean_before - sd_before, ymax = mean_before),
-      colour = paletteer::paletteer_d("ggsci::nrc_npg")[1],
-      na.rm = TRUE
+                   ymin = mean_before - sd_before, ymax = mean_before),
+      colour = pal[1], na.rm = TRUE
     ) +
     ggplot2::geom_pointrange(
       data = gaps_filt,
       ggplot2::aes(x = station_name, y = mean_after,
-                  ymin = mean_after + sd_after, ymax = mean_after),
-      colour = paletteer::paletteer_d("ggsci::nrc_npg")[6],
-      na.rm = TRUE
+                   ymin = mean_after, ymax = mean_after + sd_after),
+      colour = pal[6], na.rm = TRUE
     ) +
     ggplot2::geom_text(
       data = gaps_filt,
-      ggplot2::aes(y = (mean_before - sd_before) - 10,
-                  x = station_name, label = days_before),
-      colour = paletteer::paletteer_d("ggsci::nrc_npg")[1],
-      na.rm = TRUE
+      ggplot2::aes(x = station_name, y = (mean_before - sd_before) - 10,
+                   label = days_before),
+      colour = pal[1], nudge_x = 0.3, na.rm = TRUE
     ) +
     ggplot2::geom_text(
       data = gaps_filt,
-      ggplot2::aes(y = (mean_after + sd_after) + 10,
-                  x = station_name, label = days_after),
-      colour = paletteer::paletteer_d("ggsci::nrc_npg")[6],
-      na.rm = TRUE
-    ) +      
-    ggplot2::geom_hline(yintercept = 0, lty = 'dashed') +
-    ggplot2::scale_y_continuous(breaks = seq(max_neg, max_pos, 50),
-         labels = c(seq(max_neg * -1, 50, -50), seq(0, max_pos, 50)),
-         sec.axis = ggplot2::sec_axis(~ . *1, name = "Position", 
-         breaks = c(-50, 50), labels = c("Before", "After"))) +    
+      ggplot2::aes(x = station_name, y = (mean_after + sd_after) + 10,
+                   label = days_after),
+      colour = pal[6], nudge_x = 0.3, na.rm = TRUE
+    ) +
+    ggplot2::geom_hline(yintercept = 0, lty = "dashed") +
+    ggplot2::scale_y_continuous(
+      breaks = seq(max_neg, max_pos, 100),
+      labels = function(x) abs(x),
+      sec.axis = ggplot2::sec_axis(~ ., name = "Position",
+                                   breaks = c(-50, 50),
+                                   labels = c("Before", "After"))
+    ) +
     ggplot2::labs(y = "Gap size (m)", x = "Station Name") +
     ggplot2::coord_flip()
 
