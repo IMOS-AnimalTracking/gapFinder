@@ -113,13 +113,13 @@ gaps_diag <- function(input,
     ) +
     ggplot2::geom_text(
       data = gaps_filt,
-      ggplot2::aes(x = station_name, y = (mean_before - sd_before) - 10,
+      ggplot2::aes(x = station_name, y = (mean_before - sd_before) - 80,
                    label = days_before),
       colour = pal[1], nudge_x = 0.3, na.rm = TRUE
     ) +
     ggplot2::geom_text(
       data = gaps_filt,
-      ggplot2::aes(x = station_name, y = (mean_after + sd_after) + 10,
+      ggplot2::aes(x = station_name, y = (mean_after + sd_after) + 80,
                    label = days_after),
       colour = pal[6], nudge_x = 0.3, na.rm = TRUE
     ) +
@@ -137,6 +137,16 @@ gaps_diag <- function(input,
     if (circ) 
       plot_gaps <- plot_gaps +
         ggplot2::facet_wrap(~circadian)
+
+    if (max_pos > 500) {
+      plot_gaps <- suppressMessages(plot_gaps +
+      ggplot2::scale_y_continuous(
+        breaks = seq(max_neg, max_pos, 200),
+        labels = function(x) abs(x),
+        sec.axis = ggplot2::sec_axis(~ ., name = "Position",
+          breaks = c(-200, 200), labels = c("Before", "After"))
+      ))
+    }
 
   # Transform negative values back to positive for export
   gaps_filt$mean_before <- gaps_filt$mean_before * -1

@@ -46,7 +46,7 @@ get_daily_ranges <- function(input,
     }
 
   station_worker <- function(stat, input, max_dist, min_slope, max_slope,
-                           use_circadian = FALSE) {
+                           use_circadian = circadian) {
 
   logit_fit <- function(df_sub, b1_start, b0_fallback = NULL) {
     fit_df <- unique(rbind(

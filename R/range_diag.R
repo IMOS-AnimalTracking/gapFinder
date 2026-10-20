@@ -51,48 +51,94 @@ range_diag <- function(input,
 
   deploy_time <- as.numeric(difftime(max(input$date), min(input$date), units = "days"))
   options(dplyr.summarise.inform = FALSE)
-  # Calculate metrics at station level
-  df_sum <- input %>%
-    dplyr::group_by(station_name) %>%
-    dplyr::summarise(days_range_prop = round(length(unique(date)) / deploy_time, 2),
-      min_transmitters = min(tot_stations_detected),
-      max_transmitters = max(tot_stations_detected),
-      min_distance = min(max_distance_detected),
-      max_distance = max(max_distance_detected),
-      min_efficiency = round(min(daily_efficiency), 2),
-      mean_efficiency = round(mean(daily_efficiency), 2),
-      max_efficiency = round(max(daily_efficiency), 2),
-      min_range = if (all(is.na(range))) {
-          NA_real_
-        } else {
-          round(min(range, na.rm = TRUE), 2)
-        },
-      mean_range = if (all(is.na(range))) {
-          NA_real_
-        } else {
-          round(mean(range, na.rm = TRUE), 2)
-        },
-      max_range = if (all(is.na(range))) {
-          NA_real_
-        } else {
-          round(max(range, na.rm = TRUE), 2)
-        },
-      min_cor_range = if (all(is.na(cor_range))) {
-          NA_real_
-        } else {
-          round(min(cor_range, na.rm = TRUE), 2)
-        },
-      mean_cor_range = if (all(is.na(cor_range))) {
-          NA_real_
-        } else {
-          round(mean(cor_range, na.rm = TRUE), 2)
-        },
-      max_cor_range = if (all(is.na(cor_range))) {
-          NA_real_
-        } else {
-          round(max(cor_range, na.rm = TRUE), 2)
-        },
-    .groups = "drop") 
+
+  if ("circadian" %in% names(input)) {
+    df_sum <- input %>%
+      dplyr::group_by(station_name, circadian) %>%
+      dplyr::summarise(days_range_prop = round(length(unique(date)) / deploy_time, 2),
+        min_transmitters = min(tot_stations_detected),
+        max_transmitters = max(tot_stations_detected),
+        min_distance = min(max_distance_detected),
+        max_distance = max(max_distance_detected),
+        min_efficiency = round(min(daily_efficiency), 2),
+        mean_efficiency = round(mean(daily_efficiency), 2),
+        max_efficiency = round(max(daily_efficiency), 2),
+        min_range = if (all(is.na(range))) {
+            NA_real_
+          } else {
+            round(min(range, na.rm = TRUE), 2)
+          },
+        mean_range = if (all(is.na(range))) {
+            NA_real_
+          } else {
+            round(mean(range, na.rm = TRUE), 2)
+          },
+        max_range = if (all(is.na(range))) {
+            NA_real_
+          } else {
+            round(max(range, na.rm = TRUE), 2)
+          },
+        min_cor_range = if (all(is.na(cor_range))) {
+            NA_real_
+          } else {
+            round(min(cor_range, na.rm = TRUE), 2)
+          },
+        mean_cor_range = if (all(is.na(cor_range))) {
+            NA_real_
+          } else {
+            round(mean(cor_range, na.rm = TRUE), 2)
+          },
+        max_cor_range = if (all(is.na(cor_range))) {
+            NA_real_
+          } else {
+            round(max(cor_range, na.rm = TRUE), 2)
+          },
+      .groups = "drop") 
+
+
+  } else {
+    df_sum <- input %>%
+      dplyr::group_by(station_name) %>%
+      dplyr::summarise(days_range_prop = round(length(unique(date)) / deploy_time, 2),
+        min_transmitters = min(tot_stations_detected),
+        max_transmitters = max(tot_stations_detected),
+        min_distance = min(max_distance_detected),
+        max_distance = max(max_distance_detected),
+        min_efficiency = round(min(daily_efficiency), 2),
+        mean_efficiency = round(mean(daily_efficiency), 2),
+        max_efficiency = round(max(daily_efficiency), 2),
+        min_range = if (all(is.na(range))) {
+            NA_real_
+          } else {
+            round(min(range, na.rm = TRUE), 2)
+          },
+        mean_range = if (all(is.na(range))) {
+            NA_real_
+          } else {
+            round(mean(range, na.rm = TRUE), 2)
+          },
+        max_range = if (all(is.na(range))) {
+            NA_real_
+          } else {
+            round(max(range, na.rm = TRUE), 2)
+          },
+        min_cor_range = if (all(is.na(cor_range))) {
+            NA_real_
+          } else {
+            round(min(cor_range, na.rm = TRUE), 2)
+          },
+        mean_cor_range = if (all(is.na(cor_range))) {
+            NA_real_
+          } else {
+            round(mean(cor_range, na.rm = TRUE), 2)
+          },
+        max_cor_range = if (all(is.na(cor_range))) {
+            NA_real_
+          } else {
+            round(max(cor_range, na.rm = TRUE), 2)
+          },
+      .groups = "drop") 
+  }
 
     # Fix values for stations with no data
     index <- which(df_sum$max_efficiency == 0)
