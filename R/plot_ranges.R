@@ -4,9 +4,8 @@
 #' detection efficiency, and detection probability curves, for each station.
 #'
 #' @param input File exported from get_daily_ranges()
-#' @param range_type Type of range of interest to plot: "corrected" (default), or "modelled"
-#' @param range_flag Type of range flag: "modelled" only (default), or "all" (modelled plus minimum estimated)
-#' @param cor_flag Type of correction flag: "corrected" (default), or "all" (to plot all data)
+#' @param range_type Range flag to select (default NULL is both): 1 = Modelled range (default), 2 = Minimum estimated range
+#' @param cor_type Correction flag to select (default NULL is both): 1 = ML corrected range (default), 2 = Missing diagnostic data 
 #' @param type Which plot to make, options include: timeseries, total, or both.
 #' @param station_order The names of the stations with expected overlapping ranges, from first to last.
 #' @param linewidth Linewidth of lines for timeseries plot.
@@ -21,9 +20,8 @@
 #' @export
 #' 
 plot_ranges <- function(input,
-  range_type = "corrected",
-  range_flag = "modelled",
-  cor_flag = "corrected",
+  range_type = NULL, 
+  cor_type = NULL,
   type = "both",
   linewidth = 0.15,
   station_order,
@@ -45,6 +43,13 @@ plot_ranges <- function(input,
     input$ranges <- input$ranges[input$ranges$date <= as.POSIXct(stop_time, format = "%Y-%m-%d %H:%M:%S", tz = tz)]
     input$curves <- input$curves[input$curves$date <= as.POSIXct(stop_time, format = "%Y-%m-%d %H:%M:%S", tz = tz)]
   }
+   if (!is.null(range_type)) {
+    input <- input[which(input$range_flag == range_type),]
+  }
+  if (!is.null(cor_type)) {
+    input <- input[which(input$cor_flag == cor_type),]
+  }
+
 
   # Sort receiver order
   input$ranges <- subset(input$ranges, station_name %in% station_order)
