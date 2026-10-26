@@ -225,8 +225,10 @@ get_daily_ranges <- function(input,
       if (length(index_na) > 0)
         df_ranges$range_flag[index_na] <- 0
     df_ranges$range_flag <- as.factor(df_ranges$range_flag)
+  } else {
+    df_ranges$range_flag <- 1 # All rows are modelled range!
   }
-  
+
   # ML correction of ranges
   message("Applying ML correction to modelled ranges")
     
