@@ -168,7 +168,6 @@ get_daily_ranges <- function(input,
   )
 }
 
-
   # SERIAL / PARALLEL EXECUTION
   if (!parallel) {
     message("Calculating daily ranges")
@@ -205,6 +204,7 @@ get_daily_ranges <- function(input,
       dplyr::filter(station_name %in% aux_zero$station_name) %>%
       dplyr::group_by(station_name) %>%
       dplyr::summarise(min_ed50 = min(ed50))
+   
     # Minimum distance: min ML corrected range - 5% of minimum detected distance
     dist_fac <- min(df_ranges$max_distance_detected[which(df_ranges$max_distance_detected > 0)])
     dist_fac <- round(dist_fac * (5 / 100), 0) #
@@ -213,15 +213,16 @@ get_daily_ranges <- function(input,
     index <- which(is.na(aux_min$min_ed50))
     if (length(index) > 0) 
       aux_min$min_ed50[index] <- dist_fac
-    # Add minimum to no detections
+    # Add minimum values and b0/b1 to no detection days
     index <- which(df_ranges$tot_stations_detected == 0)
-    if (length(index) > 0)
+    if (length(index) > 0) {
       df_ranges$ed50[index] <- aux_min$min_ed50[match(df_ranges$station_name[index], aux_min$station_name)]
-    
+      df_ranges$b0[index] <- round((df_ranges$ed50[index] / 100), 2)
+    }    
     # Add range flags
     df_ranges$range_flag <- 1 # Modelled Range
     df_ranges$range_flag[index] <- 2 # Min estimated range
-    index_na <- which(is.na(df_ranges$b0))
+    index_na <- which(is.na(df_ranges$b1))
       if (length(index_na) > 0)
         df_ranges$range_flag[index_na] <- 0
     df_ranges$range_flag <- as.factor(df_ranges$range_flag)
@@ -253,7 +254,7 @@ get_daily_ranges <- function(input,
       df_ranges$cor_flag <- 1
       df_ranges$cor_flag[which(is.na(df_ranges$temp))] <- 2
       df_ranges$cor_flag[which(is.na(df_ranges$noise))] <- 2
-      df_ranges$cor_flag[which(is.na(df_ranges$b0))] <- 0
+      df_ranges$cor_flag[which(is.na(df_ranges$b1))] <- 0
       df_ranges$cor_flag <- as.factor(df_ranges$cor_flag)
 
     # Using modelled ranges is corrected is missing or negative
@@ -271,57 +272,49 @@ get_daily_ranges <- function(input,
     curves = data.table::rbindlist(lapply(out, `[[`, "curves"))
   )
 
-  # # Add minimum range for days with no detections 
-  # aux_zero <- subset(output$ranges, is.na(daily_efficiency))
-  # if (nrow(aux_zero) > 0) {
-  #   # Find minimum ranges per station
-  #   aux_min <- output$ranges %>%
-  #     dplyr::filter(station_name %in% aux_zero$station_name) %>%
-  #     dplyr::group_by(station_name) %>%
-  #     dplyr::summarise(min_ed50 = min(ed50))
-  #   # Minimum distance: min ML corrected range - 5% of minimum detected distance
-  #   dist_fac <- min(output$ranges$max_distance_detected[which(output$ranges$max_distance_detected > -Inf)])
-  #   dist_fac <- round(dist_fac * (5 / 100), 0) #
-  #   dist_min <- round(min(output$ranges$cor_ed50) - dist_fac, 2)
-  #   # Add minimum to no detections
-  #   index <- which(output$ranges$tot_stations_detected == 0)
-  #   output$ranges$ed50[index] <- dist_min
-  #   output$ranges$cor_ed50[index] <- dist_min
-  #   output$ranges$max_distance_detected[index] <- 0
-  #   output$ranges$daily_efficiency[index] <- 0
-  #   # Add range flags
-  #   output$ranges$range_flag <- 1 # Modelled Range
-  #   output$ranges$range_flag[index] <- 2 # Min estimated range
-  #     index_na <- which(is.na(output$ranges$range))
-  #     if (length(index_na) > 0)
-  #       output$ranges$range[index2] <- 0
-  #   output$ranges$range_flag <- as.factor(output$ranges$range_flag)
+  # Fix curves for days with minimum ranges:
+  ranges <- data.table::as.data.table(output$ranges)   
+  curves <- data.table::as.data.table(output$curves)
 
-  #   # ML fix the minimum ranges were diagnostic data is present
-  #   df_ranges <- output$ranges
-  #   df_ranges <- df_ranges %>%
-  #       dplyr::mutate(.row = dplyr::row_number())
-  #     df_ranges_pred <- df_ranges %>%
-  #       dplyr::select(.row, ed50, daily_efficiency, noise, temp) %>%
-  #       tidyr::drop_na()
-  #     df_ranges_pred <- df_ranges_pred %>%
-  #       dplyr::bind_cols(stats::predict(wf_fit, new_data = df_ranges_pred) %>% rename(pred_range_diff = .pred)) %>%
-  #       dplyr::mutate(cor_ed50_new = ed50 - pred_range_diff)    
-  #     # Correct negative ranges to be minimum 
-  #     df_ranges_pred$cor_ed50_new[which(df_ranges_pred$cor_ed50_new < 0)] <- dist_min
-  #     df_ranges_pred$cor_ed50_new[which(is.na(df_ranges_pred$cor_ed50_new))] <- dist_min
-  #     # Add new minimum range corrected values    
-  #     df_ranges <- df_ranges %>%
-  #       dplyr::left_join(df_ranges_pred %>% dplyr::select(.row, cor_ed50_new), by = ".row") %>%
-  #       dplyr::select(-c(.row))
-  #     df_ranges$cor_ed50_new[is.na(df_ranges$cor_ed50_new)] <- dist_min
-  #     df_ranges$cor_ed50[which(df_ranges$range_flag == 2)] <- df_ranges$cor_ed50_new[which(df_ranges$range_flag == 2)]
-  #     df_ranges <- df_ranges %>%
-  #           dplyr::select(-c(noise, temp, cor_ed50_new))
-  #   output$ranges <- df_ranges  
-  # } else {
-  #   output$ranges$range_flag <- 1 # Modelled Range
-  # }
+  # Rows of ranges with no stations detected 
+  if (circadian) {
+    zero <- ranges[tot_stations_detected == 0 & !is.na(b0) & !is.na(b1),
+                 .(date, station_name, b0, b1, circadian)]
+  } else {
+    zero <- ranges[tot_stations_detected == 0 & !is.na(b0) & !is.na(b1),
+                 .(date, station_name, b0, b1)]
+  }
+  
+  # Build the new curves for those date/station combinations
+  x_grid <- seq(0, max_anchor, length.out = 50)
+  if (circadian) {
+    new_curves <- zero[, .(x = x_grid,
+                         p = stats::plogis(b0 + b1 * x_grid)),
+                     by = .(date, station_name, circadian)]
+  } else {
+    new_curves <- zero[, .(x = x_grid,
+                         p = stats::plogis(b0 + b1 * x_grid)),
+                     by = .(date, station_name)]
+  }
+  
+  # Replace the matching old curves with the new ones
+  if (circadian) {
+    curves_final <- rbind(
+    curves[!zero, on = .(date, station_name, circadian)],   # keep everything else
+      new_curves,
+      use.names = TRUE, fill = TRUE
+    )
+    setorder(curves_final, date, station_name, circadian, x)
+  } else {
+    curves_final <- rbind(
+    curves[!zero, on = .(date, station_name)],   # keep everything else
+      new_curves,
+      use.names = TRUE, fill = TRUE
+    )
+    setorder(curves_final, date, station_name, x)
+  }
+  output$curves <- curves_final
+  output$ranges$b1[is.na(output$ranges$b1)] <- max_slope
 
   # Reorganize output
   if (circadian) {
