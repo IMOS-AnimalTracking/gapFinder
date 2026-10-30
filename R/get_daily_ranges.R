@@ -197,14 +197,75 @@ get_daily_ranges <- function(input,
       by = c("station_name", "date")
     )
 
+  # Add days when no detections, plus, receiver not recovered
+  if (circadian) {
+    help_comb <- expand.grid(date = unique(df_ranges$date),
+      circadian = c('night', 'day'),
+      station_name = unique(df_ranges$station_name))
+    help_comb$aux <- paste(help_comb$date, help_comb$station_name, help_comb$circadian, sep = "_")
+    df_ranges$aux <- paste(df_ranges$date, df_ranges$station_name, df_ranges$circadian, sep = "_")
+  } else {
+    help_comb <- expand.grid(date = unique(df_ranges$date),
+      station_name = unique(df_ranges$station_name))
+    help_comb$aux <- paste(help_comb$date, help_comb$station_name, sep = "_")
+    df_ranges$aux <- paste(df_ranges$date, df_ranges$station_name, sep = "_")
+  }
+  help_comb$lat <- df_ranges$lat[match(help_comb$station_name, df_ranges$station_name)]
+  help_comb$lon <- df_ranges$lon[match(help_comb$station_name, df_ranges$station_name)]
+  # Find missing combinations
+  index <- which(help_comb$aux %in% df_ranges$aux)
+  if (length(index) > 0)
+    help_comb <- help_comb[-index,]
+  if (nrow(help_comb) > 0) { # Days with no recoveries
+    help_missing <- NULL
+    if (circadian) {
+      for (i in 1:nrow(help_comb)) {
+        aux_range <- df_ranges[1,]
+        aux_range$date <- help_comb$date[i]
+        aux_range$station_name <- help_comb$station_name[i]
+        aux_range$circadian <- help_comb$circadian[i]
+        aux_range$lat <- help_comb$lat[i]
+        aux_range$lon <- help_comb$lon[i]
+        aux_range$max_distance_detected <- 0
+        aux_range$tot_stations_detected <- 0
+        aux_range$b0 <- NA
+        aux_range$ed50 <- NA
+        aux_range$daily_efficiency <- 0
+        aux_range$noise <- NA
+        aux_range$temp <- NA
+        help_missing <- rbind(help_missing, aux_range)
+      }
+    } else {
+      for (i in 1:nrow(help_comb)) {
+        aux_range <- df_ranges[1,]
+        aux_range$date <- help_comb$date[i]
+        aux_range$station_name <- help_comb$station_name[i]
+        aux_range$lat <- help_comb$lat[i]
+        aux_range$lon <- help_comb$lon[i]
+        aux_range$max_distance_detected <- 0
+        aux_range$tot_stations_detected <- 0
+        aux_range$b0 <- NA
+        aux_range$ed50 <- NA
+        aux_range$daily_efficiency <- 0
+        aux_range$noise <- NA
+        aux_range$temp <- NA
+        help_missing <- rbind(help_missing, aux_range)
+      }
+    }
+  }
+  df_ranges <- rbind(df_ranges, help_missing)
+  df_ranges <- df_ranges[,-15]
+
+  # Days with receiver recovered but no detections
   aux_zero <- subset(df_ranges, daily_efficiency == 0)
   if (nrow(aux_zero) > 0) {
     # Find minimum ranges per station
-    aux_min <- df_ranges %>%
+    aux_min <- suppressWarnings(df_ranges %>%
       dplyr::filter(station_name %in% aux_zero$station_name) %>%
       dplyr::group_by(station_name) %>%
-      dplyr::summarise(min_ed50 = min(ed50))
-   
+      dplyr::summarise(min_ed50 = min(ed50, na.rm = TRUE))) %>%
+      dplyr::mutate(across(everything(), ~ replace(.x, is.infinite(.x), NA)))
+    
     # Minimum distance: min ML corrected range - 5% of minimum detected distance
     dist_fac <- min(df_ranges$max_distance_detected[which(df_ranges$max_distance_detected > 0)])
     dist_fac <- round(dist_fac * (5 / 100), 0) #
