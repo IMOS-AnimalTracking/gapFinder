@@ -254,8 +254,12 @@ get_daily_ranges <- function(input,
     }
   }
   df_ranges <- rbind(df_ranges, help_missing)
-  df_ranges <- df_ranges[,-15]
-
+  if(circadian) {
+    df_ranges <- df_ranges[,-15]
+  } else {
+    df_ranges <- df_ranges[,-14]
+  }
+  
   # Days with receiver recovered but no detections
   aux_zero <- subset(df_ranges, daily_efficiency == 0)
   if (nrow(aux_zero) > 0) {
@@ -264,7 +268,7 @@ get_daily_ranges <- function(input,
       dplyr::filter(station_name %in% aux_zero$station_name) %>%
       dplyr::group_by(station_name) %>%
       dplyr::summarise(min_ed50 = min(ed50, na.rm = TRUE))) %>%
-      dplyr::mutate(across(everything(), ~ replace(.x, is.infinite(.x), NA)))
+      dplyr::mutate(dplyr::across(dplyr::everything(), ~ replace(.x, is.infinite(.x), NA)))
     
     # Minimum distance: min ML corrected range - 5% of minimum detected distance
     dist_fac <- min(df_ranges$max_distance_detected[which(df_ranges$max_distance_detected > 0)])
