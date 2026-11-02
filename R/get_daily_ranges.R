@@ -235,6 +235,8 @@ get_daily_ranges <- function(input,
         aux_range$temp <- NA
         help_missing <- rbind(help_missing, aux_range)
       }
+      df_ranges <- rbind(df_ranges, help_missing)
+      df_ranges <- df_ranges[,-15]
     } else {
       for (i in 1:nrow(help_comb)) {
         aux_range <- df_ranges[1,]
@@ -251,13 +253,9 @@ get_daily_ranges <- function(input,
         aux_range$temp <- NA
         help_missing <- rbind(help_missing, aux_range)
       }
+      df_ranges <- rbind(df_ranges, help_missing)
+      df_ranges <- df_ranges[,-14]
     }
-  }
-  df_ranges <- rbind(df_ranges, help_missing)
-  if(circadian) {
-    df_ranges <- df_ranges[,-15]
-  } else {
-    df_ranges <- df_ranges[,-14]
   }
   
   # Days with receiver recovered but no detections
