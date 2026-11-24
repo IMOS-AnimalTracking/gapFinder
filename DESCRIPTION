@@ -35,8 +35,7 @@ Imports:
     lubridate,
     doParallel,
     parallel,
-    workflows,
-    ranger  
+    workflows 
 Suggests:
     knitr,
     rmarkdown,
