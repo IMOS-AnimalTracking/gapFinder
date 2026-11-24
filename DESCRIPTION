@@ -35,12 +35,12 @@ Imports:
     lubridate,
     doParallel,
     parallel,
-    workflows
+    workflows,
+    ranger  
 Suggests:
     knitr,
     rmarkdown,
-    testthat,
-    ranger  
+    testthat
 VignetteBuilder: knitr
 URL: https://github.com/IMOS-AnimalTracking/gapFinder
 BugReports: https://github.com/IMOS-AnimalTracking/gapFinder/issues
