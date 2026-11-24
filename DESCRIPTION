@@ -39,7 +39,8 @@ Imports:
 Suggests:
     knitr,
     rmarkdown,
-    testthat  
+    testthat,
+    ranger  
 VignetteBuilder: knitr
 URL: https://github.com/IMOS-AnimalTracking/gapFinder
 BugReports: https://github.com/IMOS-AnimalTracking/gapFinder/issues
